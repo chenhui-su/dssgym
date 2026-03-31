@@ -2,3 +2,4 @@
 /results/history/00_start/
 /results/history/01_first_collection_of_cases
 *.pyc
+__pycache__/
