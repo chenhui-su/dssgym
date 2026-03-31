@@ -24,15 +24,15 @@
 PowerShell 示例：
 
 ```powershell
-python -m venv .venv
-.venv\Scripts\Activate.ps1
-python -m pip install --upgrade pip
-pip install -r requirements.txt
+conda env create -f environment.yml
+conda activate dssgym-py312
 ```
 
 说明：
-- `requirements.txt` 中包含 `python==3.11.8`。如果安装时报 `No matching distribution found for python==...`，请删除该行后重试（Python 版本应在虚拟环境创建时指定）。
-- 本项目依赖 `dss_python` 与 `dss_python_backend`，请确保本机可正常加载 OpenDSS 相关动态库并已经安装并可调用 OpenDSS 计算引擎。
+- 本项目推荐并默认使用 `Python 3.12`（由 `environment.yml` 固定）。
+- 默认采用“`conda + pip` 混合安装”：通用科学计算包由 conda 安装，`dss-python` 与 `dss-python-backend` 由 `requirements-pip.txt` 通过 pip 安装。
+- `requirements.txt` 仍保留完整依赖清单，适用于纯 pip 场景。
+- 本项目依赖 `dss-python` 与 `dss-python-backend`，请确保本机可正常加载 OpenDSS 相关动态库并已经安装并可调用 OpenDSS 计算引擎。
 
 ### 1.2 目录下直接运行
 

@@ -1,0 +1,2 @@
+dss-python==0.15.7
+dss-python-backend==0.14.5
