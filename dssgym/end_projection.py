@@ -1,8 +1,10 @@
-# -*- coding = utf-8 -*-
-# @Time : 2025/5/9 15:07
-# @Author : Gan Mocai
-# @FIle : end_projection.py
-# @Software : PyCharm
+# -*- coding: utf-8 -*-
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0 OR LicenseRef-DSSGym-Commercial
+# Copyright (c) 2025 Su Chenhui
+# @File: end_projection.py
+# @Time: 2025/5/9 15:07
+# @Author: Gan Mocai
+# @Software: PyCharm, VS Code
 
 """
 为适应不对称空间出现的连续动作空间收缩（导致储能不放电影响），添加动作后处理映射。

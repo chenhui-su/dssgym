@@ -1,8 +1,10 @@
-# -*- coding = utf-8 -*-
-# @Time : 2025/5/3 09:56
-# @Author : Gan Mocai
-# @FIle : rules_agent.py
-# @Software : PyCharm
+# -*- coding: utf-8 -*-
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0 OR LicenseRef-DSSGym-Commercial
+# Copyright (c) 2025 Su Chenhui
+# @File: rules_agent.py
+# @Time: 2025/5/3 09:56
+# @Author: Gan Mocai
+# @Software: PyCharm, VS Code
 
 """
 按固定规则行为的智能体，与环境交互。

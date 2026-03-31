@@ -1,8 +1,10 @@
-# -*- coding = utf-8 -*-
-# @Time : 2025/4/27 00:36
-# @Author : Gan Mocai
-# @FIle : ev_bms_v00.py
-# @Software : PyCharm
+# -*- coding: utf-8 -*-
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0 OR LicenseRef-DSSGym-Commercial
+# Copyright (c) 2025 Su Chenhui
+# @File: ev_bms_v00.py
+# @Time: 2025/4/27 00:36
+# @Author: Gan Mocai
+# @Software: PyCharm, VS Code
 
 """
 模拟EV的BMS，根据电池的SOC，最大功率（和温度）与充电桩所给的容量设置功率。灵感源自调研与宇航。

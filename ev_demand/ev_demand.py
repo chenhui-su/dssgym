@@ -1,8 +1,10 @@
-# -*- coding = utf-8 -*-
-# @Time : 2025/4/8 下午3:54
-# @Author : Gan Mocai
-# @FIle : ev_demand.py
-# @Software : PyCharm
+# -*- coding: utf-8 -*-
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0 OR LicenseRef-DSSGym-Commercial
+# Copyright (c) 2025 Su Chenhui
+# @File: ev_demand.py
+# @Time: 2025/4/8 15:54
+# @Author: Gan Mocai
+# @Software: PyCharm
 
 """
 生成EV充电需求队列和模型

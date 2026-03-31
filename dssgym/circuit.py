@@ -1,6 +1,5 @@
-# Copyright 2021 Siemens Corporation
 # Copyright 2025 Su Chenhui
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0 OR LicenseRef-DSSGym-Commercial
 
 """
 在python中定义各种元器件的特性，使用 OpenDSS 进行电力系统仿真。

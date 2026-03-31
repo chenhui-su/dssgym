@@ -1,0 +1,23 @@
+Third-Party and Upstream Notice
+
+This repository is a secondary development based on:
+- Upstream project: https://github.com/siemens/powergym
+- Upstream license: MIT
+
+About licensing in this repository:
+- This repository is distributed under dual licensing
+  (PolyForm-Noncommercial-1.0.0 OR LicenseRef-DSSGym-Commercial),
+  as stated in ./LICENSE.
+- By default, usage is noncommercial under PolyForm Noncommercial 1.0.0.
+- Commercial usage requires a separate written commercial license agreement.
+- This repository contains substantial code lineage from upstream MIT sources.
+- Upstream MIT rights are not revoked.
+
+Practical usage guidance:
+- This repository does not provide a clean, easy-to-separate MIT-only subset.
+- If you need to use the upstream MIT code under MIT terms, use the upstream
+  repository directly: https://github.com/siemens/powergym
+
+Reference:
+- PolyForm Noncommercial text: ./LICENSES/PolyForm-Noncommercial-1.0.0.txt
+- Upstream MIT license text: ./LICENSES/MIT-powergym.txt

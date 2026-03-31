@@ -1,8 +1,10 @@
-# -*- coding = utf-8 -*-
-# @Time : 2025/5/8 22:04
-# @Author : Gan Mocai
-# @FIle : ev_bms_01.py
-# @Software : PyCharm
+# -*- coding: utf-8 -*-
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0 OR LicenseRef-DSSGym-Commercial
+# Copyright (c) 2025 Su Chenhui
+# @File: ev_bms_v01.py
+# @Time: 2025/5/8 22:04
+# @Author: Gan Mocai
+# @Software: PyCharm, VS Code
 
 """
 更新的EVBMS，与旧EVBMS共存。

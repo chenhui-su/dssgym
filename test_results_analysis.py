@@ -1,8 +1,9 @@
-# -*- coding = utf-8 -*-
-# @Time : 2025/5/6 15:49
-# @Author : Gan Mocai
-# @FIle : test_results_analysis.py
-# @Software : PyCharm
+# -*- coding: utf-8 -*-
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0 OR LicenseRef-DSSGym-Commercial
+# Copyright (c) 2025 Su Chenhui
+# @File: test_results_analysis.py
+# @Time: 2025/5/6 15:49
+# @Software: PyCharm, VS Code
 
 """
 对测试结果进行分析，包括根据测试结果绘制调度图（参考历史实现），读取测试结果记录并进行简单统计分析。

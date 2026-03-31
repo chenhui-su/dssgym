@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
-# Copyright 2025 Su Chenhui
-# @CreateTime : 2025-07-06 14:09
-# @Author : Su Chenhui
-# @FIle : ev_model_v00.py
-# @Software : PyCharm
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0 OR LicenseRef-DSSGym-Commercial
+# Copyright (c) 2025 Su Chenhui
+# @File: ev_model_v00.py
+# @CreateTime: 2025-07-06 14:09
+# @Author: Su Chenhui
+# @Software: PyCharm, VS Code
 
 """
 专门的 EV 类

@@ -183,4 +183,10 @@ Todo:
 ## 9. 来源与许可
 
 - Upstream: [siemens/powergym](https://github.com/siemens/powergym)
-- License: [MIT](./LICENSE)
+- 本仓库采用双许可证：`PolyForm-Noncommercial-1.0.0` 或商业许可证（见 [LICENSE](./LICENSE)）
+- 默认仅授权非商用用途（PolyForm Noncommercial 1.0.0）
+- 非商用许可证文本：见 [LICENSES/PolyForm-Noncommercial-1.0.0.txt](./LICENSES/PolyForm-Noncommercial-1.0.0.txt)
+- 商业授权说明：见 [LICENSES/COMMERCIAL.txt](./LICENSES/COMMERCIAL.txt)
+- 商业使用需另行签署商业许可证
+- 本仓库为 upstream MIT 项目的二次开发，MIT 权利不会被撤销（见 [NOTICE](./NOTICE)）
+- 由于本仓库难以清晰拆分出“仅 MIT 的独立子集”，若你希望按 MIT 条款使用对应代码，请直接使用上游仓库：<https://github.com/siemens/powergym>

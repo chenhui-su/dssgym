@@ -1,6 +1,5 @@
-# Copyright 2021 Siemens Corporation
 # Copyright 2025 Su Chenhui
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0 OR LicenseRef-DSSGym-Commercial
 
 """
 Todo: 增加多充电站配置

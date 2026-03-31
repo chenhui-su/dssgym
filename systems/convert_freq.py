@@ -1,3 +1,6 @@
+# Copyright 2025 Su Chenhui
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0 OR LicenseRef-DSSGym-Commercial
+
 """
 将线路参数的频率从60Hz转换为50Hz
 """

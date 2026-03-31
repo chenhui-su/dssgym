@@ -1,6 +1,5 @@
-# Copyright 2021 Siemens Corporation
 # Copyright 2025 Su Chenhui
-# SPDX-License-Identifier: MIT
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0 OR LicenseRef-DSSGym-Commercial
 
 """
 基于 OpenDSS 的电力系统强化学习环境（Env）。它提供了一个完整的接口，

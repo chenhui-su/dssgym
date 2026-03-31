@@ -1,3 +1,7 @@
+# -*- coding: utf-8 -*-
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0 OR LicenseRef-DSSGym-Commercial
+# Copyright (c) 2025 Su Chenhui
+
 """Reward monitoring callback for SB3 training."""
 
 import os
@@ -73,4 +77,3 @@ class RewardMonitorCallback(BaseCallback):
             print(f"奖励数据已成功导出到: {filepath}")
         except Exception as exc:
             print(f"导出奖励数据时发生错误: {exc}")
-

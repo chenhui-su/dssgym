@@ -1,8 +1,10 @@
-# -*- coding = utf-8 -*-
-# @Time : 2025/3/12 下午6:24
-# @Author : Gan Mocai
-# @FIle : ppo_agent.py
-# @Software : PyCharm
+# -*- coding: utf-8 -*-
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0 OR LicenseRef-DSSGym-Commercial
+# Copyright (c) 2025 Su Chenhui
+# @File: ppo_agent.py
+# @Time: 2025/3/12 下午6:24
+# @Author: Gan Mocai
+# @Software: PyCharm
 
 """
 主程序

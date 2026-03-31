@@ -1,8 +1,10 @@
-# -*- coding = utf-8 -*-
-# @Time : 2025/5/4 19:53
-# @Author : Gan Mocai
-# @FIle : reward_curve.py
-# @Software : PyCharm
+# -*- coding: utf-8 -*-
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0 OR LicenseRef-DSSGym-Commercial
+# Copyright (c) 2025 Su Chenhui
+# @File: reward_curve.py
+# @Time: 2025/5/4 19:53
+# @Author: Gan Mocai
+# @Software: PyCharm, VS Code
 
 """
 根据历史奖励数据的csv绘制奖励曲线，包括：

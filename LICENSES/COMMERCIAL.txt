@@ -1,0 +1,24 @@
+DSSGym Commercial License Information
+
+Copyright (c) 2025 Su Chenhui
+
+License Identifier: LicenseRef-DSSGym-Commercial
+
+This repository is available for commercial use only under a separate written,
+paid commercial license agreement.
+
+Without a signed commercial license agreement, commercial use is not granted.
+
+Commercial use includes, but is not limited to:
+- selling this software or derivative works;
+- integrating this software into paid products or paid services;
+- using this software to provide paid services to third parties;
+- internal production use in commercial organizations.
+
+To obtain commercial terms (pricing, scope, support, and warranty), contact:
+Su Chenhui
+
+Note:
+- Upstream MIT-origin rights are described in ../NOTICE.
+- If you need to rely on upstream MIT terms directly, use the upstream project:
+  https://github.com/siemens/powergym
