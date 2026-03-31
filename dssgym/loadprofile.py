@@ -27,43 +27,72 @@ Note:
     1. 生成的负载曲线没有任何随机性
 """
 
-import numpy as np
-import pandas as pd
 import os
 from fnmatch import fnmatch
 
+import numpy as np
+import pandas as pd
 from scipy.interpolate import interp1d
 
 
 class LoadProfile:
     """
-        LoadProfile 类用于为系统中的负载生成负载曲线。
-        它从指定的文件夹读取负载形状文件，并根据指定的步数和比例因子生成负载曲线。
+    LoadProfile 类用于为系统中的负载生成负载曲线。
+    它从指定的文件夹读取负载形状文件，并根据指定的步数和比例因子生成负载曲线。
     """
 
-    def __init__(self, steps, dss_folder_path, dss_file, worker_idx=None,
-                 interpolate_to=None,
-                 interpolate_kind='linear'):
+    def __init__(
+        self,
+        steps,
+        dss_folder_path,
+        dss_file,
+        worker_idx=None,
+        interpolate_to=None,
+        interpolate_kind="linear",
+    ):
         self.steps = steps
         self.interpolate_to = interpolate_to  # 目标步数
         self.interpolate_kind = interpolate_kind  # 插值类型，缺省为'linear'
 
         self.dss_folder_path = dss_folder_path
-        self.loadshape_path = os.path.join(dss_folder_path, 'loadshape')
+        self.loadshape_path = os.path.join(dss_folder_path, "loadshape")
         if worker_idx is None:
-            self.loadshape_dss = 'loadshape.dss'
+            self.loadshape_dss = "loadshape.dss"
         else:
-            self.loadshape_dss = 'loadshape_' + str(worker_idx) + '.dss'
+            self.loadshape_dss = "loadshape_" + str(worker_idx) + ".dss"
 
         self.LOAD_NAMES = self.find_load_names(dss_file)
+        self.FILES = self._discover_reference_files()
 
-        self.FILES = []
-        for f in os.listdir(self.loadshape_path):
-            low = f.lower()
-            if ('loadshape' in low) and low.endswith('.csv'):
-                self.FILES.append(os.path.join(self.loadshape_path, f))
+    def _discover_reference_files(self):
+        """扫描 loadshape 目录下所有可作为参考源的 loadshape*.csv 文件。"""
+        files = []
+        for filename in os.listdir(self.loadshape_path):
+            low = filename.lower()
+            if ("loadshape" in low) and low.endswith(".csv"):
+                files.append(os.path.join(self.loadshape_path, filename))
+        return files
 
-    def interpolate_data(self, data, original_steps:int, target_steps:int):
+    @staticmethod
+    def _strip_inline_comment(line):
+        """移除行内注释（! 或 //），用于简化 DSS 行解析。"""
+        if "!" in line:
+            line = line[: line.find("!")].strip()
+        if "//" in line:
+            line = line[: line.find("//")].strip()
+        return line
+
+    @staticmethod
+    def _split_tokens(line):
+        """按空格切分并移除空 token。"""
+        return list(filter(None, line.strip().split(" ")))
+
+    @staticmethod
+    def _profile_dir_name(idx):
+        """统一负载曲线目录命名（固定 4 位，例：0000）。"""
+        return str(idx).zfill(4)
+
+    def interpolate_data(self, data, original_steps: int, target_steps: int):
         """将原始负载曲线数据从原始点数插值到目标点数
 
         Args:
@@ -83,28 +112,27 @@ class LoadProfile:
 
     def create_file_with_daily(self, file_name):
         """
-            创建一个新文件，名为为 'file_name[:-4]_daily.dss'
-            在这个新文件中，如果有任何负载被创建，这个负载就会和它的日负载形状相关联。
+        创建一个新文件，名为为 'file_name[:-4]_daily.dss'
+        在这个新文件中，如果有任何负载被创建，这个负载就会和它的日负载形状相关联。
         """
-        fin = open(os.path.join(self.dss_folder_path, file_name), 'r', encoding='utf-8')
-        fout = open(os.path.join(self.dss_folder_path, file_name[:-4] + '_daily.dss'), 'w', encoding='utf-8')
-        for line in fin:
-            if not line.lower().startswith('new load.') or ('daily' in line):
-                fout.write(line)
-            else:
-                line = line.strip()
-                if '!' in line: line = line[:line.find('!')].strip()  # remove inline comment
-                if '//' in line: line = line[:line.find('//')].strip()  # remove inline comment
-                spt = list(filter(None, line.split(' ')))  # filter out the empty string
-                load = spt[1].split('.', 1)[1]
-                fout.write(line + ' daily=loadshape_' + load + '\n')
-        fin.close()
-        fout.close()
+        src = os.path.join(self.dss_folder_path, file_name)
+        dst = os.path.join(self.dss_folder_path, file_name[:-4] + "_daily.dss")
+
+        with open(src, "r", encoding="utf-8") as fin, open(dst, "w", encoding="utf-8") as fout:
+            for line in fin:
+                if not line.lower().startswith("new load.") or ("daily" in line):
+                    fout.write(line)
+                else:
+                    # 去掉行内注释，避免污染 load 名提取与回写
+                    clean_line = self._strip_inline_comment(line.strip())
+                    parts = self._split_tokens(clean_line)
+                    load = parts[1].split(".", 1)[1]
+                    fout.write(clean_line + " daily=loadshape_" + load + "\n")
 
     def add_redirect_and_mode_at_main_daily_dss(self, main_daily_dss):
         """
-            Add redirect loadshape (& load file if any)
-            and set daily mode at the main daily dss file
+        Add redirect loadshape (& load file if any)
+        and set daily mode at the main daily dss file
 
         Args:
             main_daily_dss: the file name of the main daily dss file
@@ -112,43 +140,41 @@ class LoadProfile:
         Returns:
             the load dss file (if any) associated with the main dss file
         """
-        # load the file
-        fin = open(os.path.join(self.dss_folder_path, main_daily_dss), 'r', encoding='utf-8')
-        lines = [line for line in fin]
-        fin.close()
+        file_path = os.path.join(self.dss_folder_path, main_daily_dss)
+        with open(file_path, "r", encoding="utf-8") as fin:
+            lines = [line for line in fin]
 
-        # overwrite the file
         found_load, redirect_load = False, False
         load_file = None
-        fout = open(os.path.join(self.dss_folder_path, main_daily_dss), 'w', encoding='utf-8')
-        for line in lines:
-            low = line.strip().lower()
-            if '!' in low: low = low[:low.find('!')].strip()  # remove inline comment
-            if '//' in low: low = low[:low.find('//')].strip()  # remove inline comment
-            if (not found_load) and 'load' in low and not low.startswith('~'):
-                fout.write('! add loadshape\n')
-                fout.write('redirect ' + self.loadshape_dss + '\n\n')
-                found_load = True
 
-            low = low[:-4] if len(low) >= 4 else ''
-            if (not redirect_load) and low.startswith('redirect'):
-                if low.endswith('loads') or low.endswith('load'):
-                    load_file = list(filter(None, line.strip().split(' ')))[1]  # remove the empty string
-                    fout.write('redirect ' + load_file[:-4] + '_daily.dss\n')
-                    redirect_load = True
-                elif low.endswith('loads_daily') or low.endswith('load_daily'):
-                    load_file = list(filter(None, line.strip().split(' ')))[1]  # remove the empty string
-                    fout.write(line)
-                    redirect_load = True
+        with open(file_path, "w", encoding="utf-8") as fout:
+            for line in lines:
+                # 标准化小写 + 去行内注释，便于做关键字匹配
+                low = self._strip_inline_comment(line.strip().lower())
+
+                if (not found_load) and "load" in low and (not low.startswith("~")):
+                    fout.write("! add loadshape\n")
+                    fout.write("redirect " + self.loadshape_dss + "\n\n")
+                    found_load = True
+
+                low = low[:-4] if len(low) >= 4 else ""
+                if (not redirect_load) and low.startswith("redirect"):
+                    if low.endswith("loads") or low.endswith("load"):
+                        load_file = self._split_tokens(line)[1]
+                        fout.write("redirect " + load_file[:-4] + "_daily.dss\n")
+                        redirect_load = True
+                    elif low.endswith("loads_daily") or low.endswith("load_daily"):
+                        load_file = self._split_tokens(line)[1]
+                        fout.write(line)
+                        redirect_load = True
+                    else:
+                        fout.write(line)
                 else:
                     fout.write(line)
-            else:
-                fout.write(line)
 
-        assert found_load, 'cannot find load at ' + main_daily_dss
-
-        fout.write('Set mode=Daily number=1 hour=0 stepsize=3600 sec=0\n')
-        fout.close()
+            assert found_load, "cannot find load at " + main_daily_dss
+            # 强制设置日模式（与旧实现保持一致）
+            fout.write("Set mode=Daily number=1 hour=0 stepsize=3600 sec=0\n")
 
         return load_file
 
@@ -159,45 +185,48 @@ class LoadProfile:
         Returns:
             load_file: 找到的负载文件名（字符串），如果未找到则为None
         """
-        fin = open(os.path.join(self.dss_folder_path, main_dss), 'r', encoding='utf-8')
-        load_file = None
-        for line in fin:
-            low = line.strip().lower()
-            if '!' in low: low = low[:low.find('!')].strip()  # remove inline comment
-            if '//' in low: low = low[:low.find('//')].strip()  # remove inline comment
-            low = low[:-4] if len(low) >= 4 else ''
-            # 找到第一个匹配的负载文件，退出
-            if low.startswith('redirect') and (low.endswith('loads') or low.endswith('load')
-                                               or low.endswith('loads_daily') or low.endswith(
-                        'load_daily')):  # or 运算符的短路特性
-                load_file = list(filter(None, line.strip().split(' ')))[1]
-                break
-        return load_file
+        file_path = os.path.join(self.dss_folder_path, main_dss)
+
+        with open(file_path, "r", encoding="utf-8") as fin:
+            for line in fin:
+                low = self._strip_inline_comment(line.strip().lower())
+                low = low[:-4] if len(low) >= 4 else ""
+
+                # 找到第一个匹配的负载文件，退出
+                if low.startswith("redirect") and (
+                    low.endswith("loads")
+                    or low.endswith("load")
+                    or low.endswith("loads_daily")
+                    or low.endswith("load_daily")
+                ):
+                    return self._split_tokens(line)[1]
+
+        return None
 
     def find_load_names(self, main_dss):
         """
-            Find the loads with daily loadshapes at main dss or the load dss files.
-            If there is none,
-                then generate new files (annotated _daily) with daily loadshapes.
+        Find the loads with daily loadshapes at main dss or the load dss files.
+        If there is none,
+            then generate new files (annotated _daily) with daily loadshapes.
         """
 
         def find_load_name(fname, names):
             file_path = os.path.join(self.dss_folder_path, fname)
-            assert os.path.exists(file_path), file_path + ' not found'
+            assert os.path.exists(file_path), file_path + " not found"
 
             needs_load_daily, daily_mode = False, False
-            with open(file_path, 'r', encoding='utf-8') as fin:
+            with open(file_path, "r", encoding="utf-8") as fin:
                 for line in fin:
                     low = line.strip().lower()
-                    if low.startswith('new load.'):
-                        if 'daily' in low:
-                            spt = line.split(' ')
-                            spt = list(filter(None, spt))  # filter out the empty string
-                            names.append(spt[1].split('.', 1)[1])
+                    if low.startswith("new load."):
+                        if "daily" in low:
+                            spt = self._split_tokens(line)
+                            names.append(spt[1].split(".", 1)[1])
                         else:
                             needs_load_daily = True
-                    if low.startswith('set mode=daily'):
+                    if low.startswith("set mode=daily"):
                         daily_mode = True
+
             return needs_load_daily, daily_mode
 
         names = []
@@ -205,29 +234,91 @@ class LoadProfile:
         # add from the main dss file
         needs_load_daily, daily_mode = find_load_name(main_dss, names)
         if needs_load_daily or (not daily_mode):
-            ## Create a new _daily file. Add daily loadshape if needed
+            # Create a new _daily file. Add daily loadshape if needed
             self.create_file_with_daily(main_dss)
 
-            ## add redirect and set daily mode at the new _daily file
-            load_file = self.add_redirect_and_mode_at_main_daily_dss(main_dss[:-4] + '_daily.dss')
+            # add redirect and set daily mode at the new _daily file
+            load_file = self.add_redirect_and_mode_at_main_daily_dss(main_dss[:-4] + "_daily.dss")
         else:
             load_file = self.find_load_file_from(main_dss)
 
         # add from the other load files
         if load_file is not None:
-            if 'daily' in load_file:
+            if "daily" in load_file:
                 needs_load_daily, _ = find_load_name(load_file, names)
-                assert (not needs_load_daily), 'invalid content in ' + load_file
+                assert not needs_load_daily, "invalid content in " + load_file
             else:
                 needs_load_daily, _ = find_load_name(load_file, names)
-                if needs_load_daily: self.create_file_with_daily(load_file)
+                if needs_load_daily:
+                    self.create_file_with_daily(load_file)
 
         # check empty or duplicate load
-        assert len(
-            names) > 0, 'daliy load not found. Consider modifying from the auto-generated file annotated with _daily'
-        assert len(names) == len(set(names)), 'duplicate load names'
+        assert len(names) > 0, (
+            "daliy load not found. Consider modifying from the auto-generated file annotated with _daily"
+        )
+        assert len(names) == len(set(names)), "duplicate load names"
 
         return names
+
+    def _load_reference_dataframe(self, scale):
+        """读取并合并参考负载曲线，按 scale 进行统一缩放。"""
+        # 读取负载曲线参考文件
+        dfs = []
+        for file_path in self.FILES:
+            dfs.append(pd.read_csv(file_path, header=None))
+
+        assert len(dfs) > 0, r"put load shapes files under ./loadshape"
+
+        df = pd.concat(dfs).rename(columns={0: "mul"}).reset_index(drop=True)
+        if scale != 1.0:
+            # Pandas Series 的 * 运算是逐元素相乘
+            df["mul"] = df["mul"] * scale
+
+        return df
+
+    def _apply_interpolation_if_needed(self, df):
+        """按设定步长做分块插值；不启用插值时原样返回。"""
+        original_steps = self.steps
+        if self.interpolate_to is None:
+            return df
+
+        original_data = df["mul"].values
+        interpolated_data = []
+        # 分块插值：每 original_steps 一组
+        for i in range(0, len(original_data), original_steps):
+            chunk = original_data[i : i + original_steps]
+            # 插值需要 chunk 长度等于 original_steps
+            if len(chunk) == original_steps:
+                interpolated_chunk = self.interpolate_data(chunk, original_steps, self.interpolate_to)
+                interpolated_data.extend(interpolated_chunk)
+
+        self.steps = self.interpolate_to
+        return pd.DataFrame({"mul": interpolated_data})
+
+    def _profile_cache_is_valid(self, episodes, scale):
+        """检查已有 loadshape 目录与 scale 是否可直接复用。"""
+        checks = [fnmatch(file_name, "0*") for file_name in os.listdir(self.loadshape_path)]
+        scale_txt = os.path.join(self.loadshape_path, "scale.txt")
+        fscale = np.genfromtxt(scale_txt).reshape(1)[0] if os.path.exists(scale_txt) else None
+        return sum(checks) == episodes and fscale == scale
+
+    def _build_profile_dataframe(self, df, episodes):
+        """构造 episode/load/step 三列并返回排序后的标准输出表。"""
+        load_col, episode_col, step_col = [], [], []
+        for i in range(self.steps * episodes * len(self.LOAD_NAMES)):
+            load_col.append(self.LOAD_NAMES[i // (self.steps * episodes)])
+            episode_col.append((i // self.steps) % episodes)
+            step_col.append(i % self.steps)
+
+        df = df[: len(load_col)]
+        df["load"] = load_col
+        df["episode"] = episode_col
+        df["step"] = step_col
+
+        return (
+            df.sort_values(by=["episode", "load", "step"])[["episode", "load", "step", "mul"]]
+            .reset_index(drop=True)
+        )
 
     def gen_loadprofile(self, scale=1.0):
         """
@@ -237,106 +328,72 @@ class LoadProfile:
         Returns:
             episodes: 生成的负载曲线的数量
         """
-        # 读取负载曲线参考文件
-        dfs = []
-        for f in self.FILES:
-            dfs.append(pd.read_csv(f, header=None))
-        assert len(dfs) > 0, r'put load shapes files under ./loadshape'
-        df = pd.concat(dfs).rename(columns={0: 'mul'}).reset_index(drop=True)
-        if scale != 1.0:
-            df['mul'] = df['mul'] * scale # df['mul'] 不是普通的 Python 列表，而是 Pandas 的 Series。对于 Series 或 Numpy 数组，* 运算符表示逐元素相乘（广播），不会扩充长度，只会让每个元素都乘以 scale。
+        df = self._load_reference_dataframe(scale)
+        df = self._apply_interpolation_if_needed(df)
 
-        # 插值
-        original_steps = self.steps
-        if self.interpolate_to is not None:
-            # 原始steps
-            original_data = df['mul'].values
-            interpolated_data = []
-
-            # 分块插值
-            for i in range(0, len(original_data), original_steps):
-                chunk = original_data[i:i + original_steps]
-                # 插值需要chunk长度等于原始steps
-                if len(chunk) == original_steps:
-                    interpolated_chunk = self.interpolate_data(chunk, original_steps, self.interpolate_to)
-                    interpolated_data.extend(interpolated_chunk)
-
-            # 更新df和steps
-            df = pd.DataFrame({'mul': interpolated_data})
-            self.steps = self.interpolate_to
-
-        # 计算生成的数据可分隔为多少个episodes
+        # 计算生成的数据可分隔为多少个 episodes
         episodes = len(df) // (self.steps * len(self.LOAD_NAMES))
-
-        # 检查loadprofile文件夹是否存在
-        checks = [fnmatch(f, '0*') for f in os.listdir(self.loadshape_path)]
-        scale_txt = os.path.join(self.loadshape_path, 'scale.txt')
-        fscale = np.genfromtxt(scale_txt).reshape(1)[0] if os.path.exists(scale_txt) else None
-        if sum(checks) == episodes and fscale == scale:
+        if self._profile_cache_is_valid(episodes, scale):
             return episodes
 
-        # 保存当前的scale
+        # 保存当前的 scale
+        scale_txt = os.path.join(self.loadshape_path, "scale.txt")
         np.savetxt(scale_txt, np.array([scale]))
 
-        # 插入loadname, day, step列
-        load_col, episode_col, step_col = [], [], []
-        for i in range(self.steps * episodes * len(self.LOAD_NAMES)):
-            load_col.append(self.LOAD_NAMES[i // (self.steps * episodes)])
-            episode_col.append((i // self.steps) % episodes)
-            step_col.append(i % self.steps)
-        df = df[:len(load_col)]
-        df['load'] = load_col
-        df['episode'] = episode_col
-        df['step'] = step_col
+        profile_df = self._build_profile_dataframe(df, episodes)
 
-        # 排序并输出
-        df = df.sort_values(by=['episode', 'load', 'step'])[['episode', 'load', 'step', 'mul']].reset_index(drop=True)
         for episode in range(episodes):
-            if not os.path.exists(os.path.join(self.loadshape_path, str(episode).zfill(4))):
-                os.mkdir(os.path.join(self.loadshape_path, str(episode).zfill(4)))
-            sdf = df[df['episode'] == episode]
+            profile_dir = os.path.join(self.loadshape_path, self._profile_dir_name(episode))
+            if not os.path.exists(profile_dir):
+                os.mkdir(profile_dir)
+
+            sdf = profile_df[profile_df["episode"] == episode]
             for load in self.LOAD_NAMES:
-                series = sdf[sdf['load'] == load]['mul']
-                series.to_csv(
-                    os.path.join(self.loadshape_path, str(episode).zfill(4), load + '.csv'),
-                    header=False, index=False)
+                series = sdf[sdf["load"] == load]["mul"]
+                series.to_csv(os.path.join(profile_dir, load + ".csv"), header=False, index=False)
 
         return episodes
 
     def choose_loadprofile(self, idx):
         """
-        选择特定的负载曲线文件，并在主负载文件中添加重定向和模式设置.(修改了zfill参数3->4)
+        选择特定的负载曲线文件，并在主负载文件中添加重定向和模式设置.
         Args:
             idx (int): 负载曲线编号
         Returns:
             负载曲线文件的路径
         """
-        assert os.path.exists(os.path.join(self.loadshape_path, str(idx).zfill(4))), 'idx does not exist'
+        profile_dir_name = self._profile_dir_name(idx)
+        profile_dir = os.path.join(self.loadshape_path, profile_dir_name)
+        assert os.path.exists(profile_dir), "idx does not exist"
 
-        with open(os.path.join(self.dss_folder_path, self.loadshape_dss), 'w') as fp:
+        loadshape_dss_path = os.path.join(self.dss_folder_path, self.loadshape_dss)
+        with open(loadshape_dss_path, "w") as fp:
             for load_name in self.LOAD_NAMES:
                 fp.write(
-                    f'New Loadshape.loadshape_{load_name} npts={self.steps} sinterval={60 * 60 * 24 // self.steps} ' +
-                    'mult=(file=./' + os.path.join('loadshape', str(idx).zfill(4), load_name + '.csv') + ')\n')
+                    f"New Loadshape.loadshape_{load_name} npts={self.steps} "
+                    f"sinterval={60 * 60 * 24 // self.steps} "
+                    + "mult=(file=./"
+                    + os.path.join("loadshape", profile_dir_name, load_name + ".csv")
+                    + ")\n"
+                )
 
-        return os.path.join(self.loadshape_path, str(idx).zfill(4))
+        return profile_dir
 
     def get_loadprofile(self, idx):
         """
-        获取指定编号目录的所有负载曲线数据.(修改了zfill参数3->4)
+        获取指定编号目录的所有负载曲线数据.
         Args:
-            idx: loadrrofile的编号，整数
+            idx: loadprofile 的编号，整数
         Returns:
             all_loads: 包含所有(修饰负载而非时间)负载的曲线数据的DataFrame
         """
-        folder_path = os.path.join(self.loadshape_path, str(idx).zfill(4))
+        folder_path = os.path.join(self.loadshape_path, self._profile_dir_name(idx))
         csv_paths = os.listdir(folder_path)
+
         temp_loads = []
-        # 遍历编号目录下的所有csv文件
-        for csv in csv_paths:
-            csv_file = os.path.join(folder_path, csv)
-            load = pd.read_csv(csv_file, header=None, names=[csv.split('.')[0]])
+        for csv_name in csv_paths:
+            csv_file = os.path.join(folder_path, csv_name)
+            load = pd.read_csv(csv_file, header=None, names=[csv_name.split(".")[0]])
             temp_loads.append(load)
 
-        all_loads = pd.concat(temp_loads, axis=1)
-        return all_loads
+        return pd.concat(temp_loads, axis=1)
