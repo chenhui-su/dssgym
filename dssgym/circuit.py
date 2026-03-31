@@ -44,8 +44,8 @@ import pandas as pd
 from pathlib import Path
 from collections import deque
 
-# from dssgym.dssgym.ev_bms_v00 import EVBMS  # 充电需求可能受提供容量的影响（基值取支持功率和容量的较小值）
-from dssgym.dssgym.ev_bms_v01 import EVBMS
+# from .ev_bms_v00 import EVBMS  # 充电需求可能受提供容量的影响（基值取支持功率和容量的较小值）
+from .ev_bms_v01 import EVBMS
 
 class Circuits:
     """Circuits 类：电力系统的核心管理类

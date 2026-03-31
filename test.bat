@@ -1,15 +1,17 @@
-cd ..
-REM 恒功率改为完全受桩侧控制，临时过渡，有待后续训练
-::D:/LENOVO/anaconda3/envs/ML/python.exe D:/LENOVO/Documents/Python/ML/powergym/ppo_agent.py --model_path D:\LENOVO\Documents\Python\ML\powergym\results_20250501_021615_13Bus_cbat_1000000_01\model\ppo_model.zip --env_name 13Bus_cbat --test_only true
-::D:/LENOVO/anaconda3/envs/ML/python.exe D:/LENOVO/Documents/Python/ML/powergym/ppo_agent.py --model_path D:\LENOVO\Documents\Python\ML\powergym\results_20250502_005245_13Bus_cbat_s2_1000000_02\model\ppo_model.zip --env_name 13Bus_cbat_s2 --test_only true
-::D:/LENOVO/anaconda3/envs/ML/python.exe D:/LENOVO/Documents/Python/ML/powergym/ppo_agent.py --model_path D:\LENOVO\Documents\Python\ML\powergym\results_20250502_125646_13Bus_1000000_03\model\ppo_model.zip --env_name 13Bus --test_only true
+@echo off
+setlocal
 
-REM 改为真正的容量，临时过渡，有待后续训练
-D:/LENOVO/anaconda3/envs/ML/python.exe D:/LENOVO/Documents/Python/ML/powergym/ppo_agent.py --model_path D:\LENOVO\Documents\Python\ML\powergym\results_20250503_091058_13Bus_cbat_1000000_04\model\ppo_model.zip --env_name 13Bus_cbat --test_only true
-D:/LENOVO/anaconda3/envs/ML/python.exe D:/LENOVO/Documents/Python/ML/powergym/ppo_agent.py --model_path D:\LENOVO\Documents\Python\ML\powergym\results_20250503_124337_13Bus_cbat_s2_1000000_05\model\ppo_model.zip --env_name 13Bus_cbat_s2 --test_only true
-D:/LENOVO/anaconda3/envs/ML/python.exe D:/LENOVO/Documents/Python/ML/powergym/ppo_agent.py --model_path D:\LENOVO\Documents\Python\ML\powergym\results_20250503_165005_13Bus_1000000_06\model\ppo_model.zip --env_name 13Bus --test_only true
-D:/LENOVO/anaconda3/envs/ML/python.exe D:/LENOVO/Documents/Python/ML/powergym/ppo_agent.py --model_path D:\LENOVO\Documents\Python\ML\powergym\results_20250504_012306_13Bus_cbat_1000000_07\model\ppo_model.zip --env_name 13Bus_cbat --test_only true
-D:/LENOVO/anaconda3/envs/ML/python.exe D:/LENOVO/Documents/Python/ML/powergym/ppo_agent.py --model_path D:\LENOVO\Documents\Python\ML\powergym\results_20250504_055308_13Bus_cbat_1000000_08\model\ppo_model.zip --env_name 13Bus_cbat --test_only true
+REM 已改为项目内相对调用，可直接透传 ppo_agent.py 参数
+REM 示例:
+REM   test.bat --model_path results\xxx\model\ppo_model.zip --env_name 13Bus_cbat --test_only true
+REM   test.bat --env_name 34Bus --ev_demand_path ev_demand\ev_demand-public_parking-general-250-A95.csv --test_only true
 
-REM 不可行，基于项目根目录的相对路径如powergym.powergym无法被识别为模块 ModuleNotFoundError: No module named 'powergym.powergym'
+cd /d "%~dp0"
+python ppo_agent.py %*
+
+if errorlevel 1 (
+  echo.
+  echo 命令执行失败，请检查参数和当前 Python 环境依赖是否完整。
+)
+
 pause

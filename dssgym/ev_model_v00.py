@@ -15,7 +15,7 @@ Note:
 
 """
 
-from ev_bms_v01 import EVBMS
+from .ev_bms_v01 import EVBMS
 
 
 class EV:

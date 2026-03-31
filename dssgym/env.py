@@ -35,8 +35,8 @@ import logging
 import gymnasium as gym
 from gymnasium.utils import seeding
 
-from dssgym.dssgym.circuit import Circuits, BatteryController, load_ev_from_csv, BatteryStationManager
-from dssgym.dssgym.loadprofile import LoadProfile
+from .circuit import Circuits, BatteryController, load_ev_from_csv, BatteryStationManager
+from .loadprofile import LoadProfile
 import networkx as nx
 
 import os

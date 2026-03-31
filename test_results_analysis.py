@@ -16,6 +16,7 @@ from matplotlib.colors import ListedColormap
 import math
 import re
 import glob
+from pathlib import Path
 
 from sympy.matrices.expressions.kronecker import rules
 
@@ -810,6 +811,8 @@ def test_results_analysis(results_dir, index=0):
 
 # 示例用法
 if __name__ == "__main__":
+    project_root = Path(__file__).resolve().parent
+
     # 第一轮测试结果，历史路径，已经更改，如需重新测试需要调整
     # path_list = [
     #     r'D:\LENOVO\Documents\Python\ML\dssgym\results\results_20250501_021615_13Bus_cbat_1000000_01\test_results_20250501_073028',
@@ -824,29 +827,31 @@ if __name__ == "__main__":
     # rules_agent_path = r'D:\LENOVO\Documents\Python\ML\dssgym\results\test_results_rules_20250506_200736_13Bus_cbat'
 
     # 演示结果路径
-    demo_path_list = [
-        r'D:\LENOVO\Documents\Python\ML\dssgym\results\results_20250511_002004_13Bus_1000000\test_results_20250511_021621',  # 提供最大功率容量，启用BMS -2 演示2
-        r'D:\LENOVO\Documents\Python\ML\dssgym\results\results_20250512_215620_13Bus_1000000\test_results_20250513_001904',  # 按电池最大充电功率，不启用BMS -1 演示1
+    demo_rel_paths = [
+        r'results\results_20250511_002004_13Bus_1000000\test_results_20250511_021621',  # 提供最大功率容量，启用BMS -2 演示2
+        r'results\results_20250512_215620_13Bus_1000000\test_results_20250513_001904',  # 按电池最大充电功率，不启用BMS -1 演示1
     ]
+    demo_path_list = [str((project_root / p).resolve()) for p in demo_rel_paths]
     for i in range(len(demo_path_list)):
         test_results_analysis(demo_path_list[i], i-2)
 
     # ppo_agent测试结果路径
-    path_list = [
-        r'D:\LENOVO\Documents\Python\ML\dssgym\results\results_20250509_213723_13Bus_cbat_1000000\test_results_20250510_115601',
-        r'D:\LENOVO\Documents\Python\ML\dssgym\results\results_20250510_132849_13Bus_cbat_1000000\test_results_20250510_182929',
-        r'D:\LENOVO\Documents\Python\ML\dssgym\results\results_20250510_194947_13Bus_cbat_1000000\test_results_20250511_001130',
-        r'D:\LENOVO\Documents\Python\ML\dssgym\results\results_20250513_224309_13Bus_1000000\test_results_20250514_073953',
-        r'D:\LENOVO\Documents\Python\ML\dssgym\results\results_20250511_121502_13Bus_cbat_s2_1000000\test_results_20250511_172037',
-        r'D:\LENOVO\Documents\Python\ML\dssgym\results\results_20250512_143129_13Bus_cbat_1000000\test_results_20250512_215128',
-        r'D:\LENOVO\Documents\Python\ML\dssgym\results\results_20250514_092650_13Bus_1000000\test_results_20250514_183833',
-        r'D:\LENOVO\Documents\Python\ML\dssgym\results\results_20250513_002728_13Bus_cbat_s2_1000000\test_results_20250513_041136',
+    path_rel_list = [
+        r'results\results_20250509_213723_13Bus_cbat_1000000\test_results_20250510_115601',
+        r'results\results_20250510_132849_13Bus_cbat_1000000\test_results_20250510_182929',
+        r'results\results_20250510_194947_13Bus_cbat_1000000\test_results_20250511_001130',
+        r'results\results_20250513_224309_13Bus_1000000\test_results_20250514_073953',
+        r'results\results_20250511_121502_13Bus_cbat_s2_1000000\test_results_20250511_172037',
+        r'results\results_20250512_143129_13Bus_cbat_1000000\test_results_20250512_215128',
+        r'results\results_20250514_092650_13Bus_1000000\test_results_20250514_183833',
+        r'results\results_20250513_002728_13Bus_cbat_s2_1000000\test_results_20250513_041136',
     ]
+    path_list = [str((project_root / p).resolve()) for p in path_rel_list]
     for i in range(len(path_list)):
         test_results_analysis(path_list[i], i+1)
 
     # rules_agent测试结果路径
-    rules_agent_path = r'\dssgym\results\test_results_rules_20250513_152400_13Bus_cbat'
+    rules_agent_path = str((project_root / r'results\test_results_rules_20250513_152400_13Bus_cbat').resolve())
     test_results_analysis(rules_agent_path, 0)
 
     pass

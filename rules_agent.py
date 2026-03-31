@@ -18,7 +18,7 @@ import argparse
 
 from matplotlib import pyplot as plt
 
-from dssgym.ppo_agent import make_env, parse_arguments, seeding
+from ppo_agent import build_runtime_config, make_env, parse_arguments, seeding
 
 
 class RulesAgent:
@@ -267,7 +267,7 @@ def test_rules_agent(output_dir=None, args=None, load_profile_idx=0,
         os.makedirs(plot_dir)
 
     # 获取环境
-    env = make_env(args.env_name, worker_idx=worker_idx)
+    env = make_env(args.env_name, worker_idx=worker_idx, runtime_config=build_runtime_config(args))
     env.seed(args.seed + 0 if worker_idx is None else worker_idx)
 
     # 创建规则智能体
@@ -613,7 +613,7 @@ def run_rules_agent(args):
         return
 
     # 获取环境
-    env = make_env(args.env_name)
+    env = make_env(args.env_name, runtime_config=build_runtime_config(args))
     if hasattr(env, "seed"):
         env.seed(args.seed)
 

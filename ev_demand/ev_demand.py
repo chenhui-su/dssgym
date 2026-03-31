@@ -11,6 +11,7 @@
 import numpy as np
 import pandas as pd
 import os
+import argparse
 from collections import deque
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap
@@ -343,6 +344,18 @@ def generate_ev_parameters(Num_TimeSteps, Num_EVs, prob):
 
 
 if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description="生成 EV 充电需求队列")
+    parser.add_argument(
+        "--base_path",
+        type=str,
+        default=os.getenv("DSSGYM_EV_DISTRIBUTION_PATH"),
+        help="分布文件目录，支持绝对路径或相对当前目录路径。也可通过环境变量 DSSGYM_EV_DISTRIBUTION_PATH 设置。",
+    )
+    args = parser.parse_args()
+
+    if not args.base_path:
+        raise ValueError("缺少 --base_path。请传入分布文件目录，或设置 DSSGYM_EV_DISTRIBUTION_PATH。")
+
     # 基本数量参数
     Num_EVs = 250  # 车辆数 in conference paper 250
     Num_TimeSteps = 96  # 时间段数
@@ -351,7 +364,7 @@ if __name__ == '__main__':
 
     # 汽车参数生成
     # 1. 分布文件基础路径
-    base_path = r"D:\LENOVO\Documents\Python\ML\data\data_analyse\distribution\public_parking-general"
+    base_path = args.base_path
     dist_scenario = os.path.basename(base_path)
     dist_location, dist_day_type = os.path.basename(base_path).split('-')
 

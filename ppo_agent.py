@@ -17,8 +17,8 @@ Note:
 """
 
 from stable_baselines3 import PPO
-from dssgym.dssgym.env_register import make_env, remove_parallel_dss
-from RL.SB3.reward_monitor_callback import RewardMonitorCallback
+from dssgym.env_register import make_env, remove_parallel_dss
+from dssgym.reward_monitor_callback import RewardMonitorCallback
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -65,8 +65,18 @@ def parse_arguments():
     # 添加命令行参数以便调整是否打印每步信息
     parser.add_argument('--print_step', type=lambda x: str(x).lower() == 'true', default=False,
                         help="测试时是否打印每步信息")
+    parser.add_argument('--ev_demand_path', type=str, default=None,
+                        help="EV需求csv路径。支持绝对路径或相对于项目根目录的路径。")
     arguments = parser.parse_args()
     return arguments
+
+
+def build_runtime_config(args):
+    """构建并向下游环境创建函数透传的运行时配置。"""
+    runtime_config = {}
+    if args is not None and getattr(args, 'ev_demand_path', None):
+        runtime_config['ev_demand'] = args.ev_demand_path
+    return runtime_config or None
 
 
 def seeding(seed) -> None:
@@ -149,7 +159,7 @@ def test_ppo_agent(model=None, model_path=None, output_dir=None, args=None, load
         os.makedirs(plot_dir)
 
     # 获取环境
-    env = make_env(args.env_name, worker_idx=worker_idx)
+    env = make_env(args.env_name, worker_idx=worker_idx, runtime_config=build_runtime_config(args))
     env.seed(args.seed + 0 if worker_idx is None else worker_idx)
     env = CustomActionWrapper(env)
 
@@ -512,7 +522,7 @@ def run_ppo_agent(args, load_profile_idx=0, worker_idx=None, use_plot=False, pri
     #     os.makedirs(plot_dir)
 
     # 获取环境
-    env = make_env(args.env_name, worker_idx=worker_idx)
+    env = make_env(args.env_name, worker_idx=worker_idx, runtime_config=build_runtime_config(args))
 
     env.seed(args.seed + 0 if worker_idx is None else worker_idx)  # 不同进程使用不同的种子
 
@@ -628,7 +638,7 @@ def run_episodic_ppo_agent(args, worker_idx=None):
         fout = open("result/{}_ppo_{}.csv".format(args.env_name, args.seed), 'w')
 
     # 获取环境
-    env = make_env(args.env_name, worker_idx=worker_idx)
+    env = make_env(args.env_name, worker_idx=worker_idx, runtime_config=build_runtime_config(args))
     env.seed(args.seed + 0 if worker_idx is None else worker_idx)
 
     # 获取观察和动作空间
@@ -701,7 +711,7 @@ def run_dss_agent(args):
 
     """
     # 获取环境
-    env = make_env(args.env_name, dss_act=True)
+    env = make_env(args.env_name, dss_act=True, runtime_config=build_runtime_config(args))
     env.seed(args.seed)
 
     profiles = list(range(env.num_profiles))
