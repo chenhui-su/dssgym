@@ -13,6 +13,5 @@ dependencies:
   - networkx>=3.4,<4.0
   - imageio>=2.37,<3.0
   - pytorch>=2.10,<2.11
-  - sympy>=1.13,<2.0
   - pip:
       - -r requirements-pip.txt
