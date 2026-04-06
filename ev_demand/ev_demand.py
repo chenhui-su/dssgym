@@ -16,7 +16,6 @@ import os
 import argparse
 from collections import deque
 import matplotlib.pyplot as plt
-from matplotlib.colors import ListedColormap
 
 # 定义中英文字体映射，鸠占鹊巢
 plt.rcParams['font.family'] = ['serif', 'sans-serif']

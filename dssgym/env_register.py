@@ -493,14 +493,14 @@ def make_env(env_name, dss_act=False, worker_idx=None, runtime_config=None):
     else:
         base_file = os.path.join(folder_path, base_info['system_name'], base_info['dss_file'])
         assert os.path.exists(base_file), base_file + ' does not exist'
-        fin = open(base_file, 'r')
 
-        with open(base_file[:-4] + '_' + str(worker_idx) + '.dss', 'w') as fout:
-            for line in fin:
-                if line.strip() == 'redirect loadshape.dss':
-                    fout.write('redirect loadshape_' + str(worker_idx) + '.dss\n')
-                else:
-                    fout.write(line)
+        with open(base_file, 'r') as fin:
+            with open(base_file[:-4] + '_' + str(worker_idx) + '.dss', 'w') as fout:
+                for line in fin:
+                    if line.strip() == 'redirect loadshape.dss':
+                        fout.write('redirect loadshape_' + str(worker_idx) + '.dss\n')
+                    else:
+                        fout.write(line)
         info = base_info.copy()
         info['dss_file'] = info['dss_file'][:-4] + '_' + str(worker_idx) + '.dss'
         info['worker_idx'] = worker_idx

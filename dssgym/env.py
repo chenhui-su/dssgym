@@ -696,7 +696,7 @@ class Env(gym.Env):
         self.obs['cap_statuses'] = cap_statuses
         self.obs['reg_statuses'] = reg_statuses
         self.obs['bat_statuses'] = bat_statuses
-        self.obs['power_loss'] = - self.circuit.total_loss()[0] / self.circuit.total_power()[0]  # 功率损耗和总功率的比值
+        self.obs['power_loss'] = - self.circuit.total_loss()[0] / (self.circuit.total_power()[0] + 1e-10)  # 功率损耗和总功率的比值，添加保护防止除零
         self.obs['time'] = self.t
 
         # 加入充电站的状态信息——实时信息

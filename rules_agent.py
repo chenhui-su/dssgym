@@ -151,11 +151,13 @@ class RulesAgent:
         # 计算裕度
         tf_kVA = self.env.station_transformer_capacity
         ev_kW = self.env.obs['ev_charging_power']
-        ev_kVar = ev_kW * np.tan(np.arccos(self.env.ev_station.EV_PF))
+        # 添加 clip 保护防止 arccos 产生 NaN
+        ev_pf_clipped = np.clip(self.env.ev_station.EV_PF, -1.0, 1.0)
+        ev_kVar = ev_kW * np.tan(np.arccos(ev_pf_clipped))
         storage_kW = sum([bat.actual_power() for name, bat in self.env.circuit.storage_batteries.items() if
                           name in self.env.bat_names[:self.env.sto_num]])
         storage_kVar = sum(
-            [bat.actual_power() * np.tan(np.arccos(bat.pf)) for name, bat in self.env.circuit.storage_batteries.items()
+            [bat.actual_power() * np.tan(np.arccos(np.clip(bat.pf, -1.0, 1.0))) for name, bat in self.env.circuit.storage_batteries.items()
              if
              name in self.env.bat_names[:self.env.sto_num]])
         PV_kW = sum(load.feature[1] for key, load in self.env.circuit.loads.items() if
