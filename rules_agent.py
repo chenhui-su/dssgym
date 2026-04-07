@@ -182,19 +182,19 @@ class RulesAgent:
                 # 连续动作空间 [-1, 1] 范围
                 if remain_kVA < -150:  # 变压器超安全容量多
                     # 强制储能放电以减轻负载
-                    if i <= self.sto_num:
+                    if i < self.sto_num:
                         actions.append(1.0)
                     else:
                         actions.append(-0.4)
                 elif remain_kVA < 0:  # 轻微
-                    if i <= self.sto_num:
+                    if i < self.sto_num:
                     # 放电强度与过载程度成正比
                         discharge_level = min(remain_kVA / -150, 1.0)
                         actions.append(discharge_level)
                     else:
                         actions.append(-0.8)
                 else:
-                    if i <= self.sto_num:
+                    if i < self.sto_num:
                         actions.append(-0.2)
                     else:
                         actions.append(-1.0)
@@ -488,7 +488,7 @@ def test_rules_agent(output_dir=None, args=None, load_profile_idx=0,
                                             if j + 1 < len(powers):
                                                 reactive_power += powers[j + 1]
 
-                                if env.circuit.dss.ActiveCircuit.Generators.Next() == 0:
+                                if env.circuit.dss.ActiveCircuit.Generators.Next == 0:
                                     break
                         else:
                             while True:

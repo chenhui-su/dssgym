@@ -62,9 +62,9 @@ def plot_training_reward(csv_path, index:int=0):
     plt.plot(episodes, rewards, 'b-', alpha=0.3, label="单回合奖励")
     plt.plot(episodes, rewards_ma, 'r-', linewidth=2, label="移动平均奖励")
     # 自动调整Y轴范围，使图像更清晰
-    # 设置合理的Y轴范围，排除极端值的影响
-    reward_q1 = pd.Series(rewards).quantile(0.000005)  # 5%分位数
-    reward_q3 = pd.Series(rewards).quantile(1)  # 95%分位数
+    # 这里使用极低分位和最大值作为显示范围的经验裁剪，并非 5% / 95% 分位
+    reward_q1 = pd.Series(rewards).quantile(0.000005)
+    reward_q3 = pd.Series(rewards).quantile(1)
     y_min = max(reward_q1 / 1.5, min(rewards_ma) / 1.2)  # 确保能显示移动平均线
     y_max = min(reward_q3 * 1.5, max(rewards_ma) * 1.2)  # 确保能显示移动平均线
     plt.ylim(y_min, y_max)

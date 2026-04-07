@@ -388,7 +388,14 @@ class LoadProfile:
             all_loads: 包含所有(修饰负载而非时间)负载的曲线数据的DataFrame
         """
         folder_path = os.path.join(self.loadshape_path, self._profile_dir_name(idx))
-        csv_paths = os.listdir(folder_path)
+        csv_paths = sorted(
+            [
+                csv_name for csv_name in os.listdir(folder_path)
+                if csv_name.lower().endswith(".csv")
+                and os.path.isfile(os.path.join(folder_path, csv_name))
+            ]
+        )
+        assert len(csv_paths) > 0, f"no csv files found under {folder_path}"
 
         temp_loads = []
         for csv_name in csv_paths:

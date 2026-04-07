@@ -451,18 +451,17 @@ def get_info_and_folder(env_name, runtime_config=None, validate_ev_demand=True):
     """
     scale = 1.0
     # 通过env_name的后缀判断是否需要进行缩放并提取scale
-    is_scaled = re.match(pattern='.*(_s)([0-9]*[.])?[0-9]+?', string=env_name)  # match example: 13Bus_s2.0
-    if is_scaled:
-        matched_str = is_scaled.group(0)
-        idx = matched_str.rfind('_s')
-        env_name = matched_str[:idx]
-        scale = float(matched_str[idx + 2:])  # 取出匹配到的字符串中的数字部分
+    # 仅接受 `<env>_s<数字>` 的完整格式，避免 `13Bus_s` 等不完整输入导致 float('') 报错
+    scaled_match = re.fullmatch(r'(?P<base>.+)_s(?P<scale>\d+(?:\.\d+)?)', env_name)  # example: 13Bus_s2.0
+    if scaled_match:
+        env_name = scaled_match.group('base')
+        scale = float(scaled_match.group('scale'))
     # 检查基础环境是否存在
     assert env_name in _ENV_INFO, env_name + ' not implemented'
 
     # get base_info
     base_info = _ENV_INFO[env_name].copy()
-    if is_scaled:
+    if scaled_match:
         base_info['scale'] = scale
         base_info['soc_w'] = base_info['soc_w'] * (scale ** 2)
 

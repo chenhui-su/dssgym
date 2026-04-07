@@ -362,7 +362,7 @@ def test_ppo_agent(model=None, model_path=None, output_dir=None, args=None, load
                                             if j + 1 < len(powers):
                                                 reactive_power += powers[j + 1]
 
-                                if env.circuit.dss.ActiveCircuit.Generators.Next() == 0:
+                                if env.circuit.dss.ActiveCircuit.Generators.Next == 0:
                                     break
                         else:
                             while True:
