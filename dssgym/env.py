@@ -30,6 +30,7 @@ Note: 修改对应位置
 曾使用monkey patch临时替换函数reset，参考自 https://yuanbao.tencent.com/chat/naQivTmsDa/26ca9f85-b738-4e39-8d3d-7550578fdb25
 """
 import logging
+import warnings
 
 import gymnasium as gym
 from gymnasium.utils import seeding
@@ -424,6 +425,7 @@ class Env(gym.Env):
         self.ActionSpace = ActionSpace(self.bat_num, self.sto_num, self.bat_act_num)  # 修改为仅控制电池
         self.action_space = self.ActionSpace.space  # 标准化接口
         self.str_action = None  # 动作字符串，用于在self.plot_graph()打印
+        self._dss_step_deprecation_warned = False
         self.reset_obs_space()
 
     def reset_obs_space(self, load_profile_idx=0, wrap_observation=True, observe_load=True):
@@ -873,6 +875,14 @@ class Env(gym.Env):
             info: 额外信息(dict)
         """
         assert self.circuit.dss_act, 'Env.circuit.dss_act must be True'
+        if not self._dss_step_deprecation_warned:
+            deprecate_msg = (
+                "Env.dss_step() is legacy and soft-deprecated; this path does not model EV-battery "
+                "control in DSSGym's current architecture."
+            )
+            warnings.warn(deprecate_msg, DeprecationWarning, stacklevel=2)
+            logging.warning(deprecate_msg)
+            self._dss_step_deprecation_warned = True
 
         # Note: 更新时间步
         prev_states = self.circuit.get_all_capacitor_statuses()
@@ -886,8 +896,13 @@ class Env(gym.Env):
         capdiff = np.array([abs(prev_states[c] - cap_statuses[c]) for c in prev_states])
         regdiff = np.array([abs(prev_tapnums[r] - reg_statuses[r]) for r in prev_tapnums])
 
-        # OpenDSS does not control batteries
-        soc_errs, dis_errs, bat_statuses = [], [], dict()
+        # OpenDSS does not control batteries; keep legacy behavior but preserve observation shape when possible.
+        soc_errs, dis_errs = [], []
+        prev_bat_statuses = self.obs.get('bat_statuses', {})
+        if isinstance(prev_bat_statuses, dict) and len(prev_bat_statuses) > 0:
+            bat_statuses = {key: [0.0, 0.0] for key in prev_bat_statuses.keys()}
+        else:
+            bat_statuses = dict()
 
         # Note: 更新 obs
         bus_voltages = dict()
@@ -910,7 +925,7 @@ class Env(gym.Env):
         terminated = (self.t == self.horizon)  # Episode is done due to termination condition
         truncated = False  # Not truncated due to time limit, etc.
 
-        reward, info = self.reward_func.composite_reward(capdiff, regdiff, soc_errs[self.sto_num], dis_errs)
+        reward, info = self.reward_func.composite_reward(capdiff, regdiff, soc_errs, dis_errs)
         # avoid dividing by zero
         # noinspection PyTypeChecker
         info.update({'av_cap_err': sum(capdiff) / (self.cap_num + 1e-10),

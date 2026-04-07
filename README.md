@@ -78,7 +78,7 @@ python rules_agent.py --env_name 13Bus_cbat --test_only true --use_plot true
 - `ppo`（默认）
 - `parallel_ppo`
 - `episodic_ppo`
-- `dss`
+- `dss`（legacy，软废弃；默认不执行，需显式 `--allow_legacy_dss true`）
 
 ## 3. 环境命名与配置
 

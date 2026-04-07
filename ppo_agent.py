@@ -32,6 +32,7 @@ import random
 import itertools
 import os
 import multiprocessing as mp
+import warnings
 
 import datetime
 import time
@@ -47,7 +48,7 @@ def parse_arguments():
     parser.add_argument('--num_steps', type=int, default=10000, metavar='N',
                         help='maximum number of steps')
     parser.add_argument('--mode', type=str, default='ppo',
-                        help="running mode, ppo, parallel_ppo, episodic_ppo or dss")
+                        help="running mode, ppo, parallel_ppo, episodic_ppo or dss(legacy, deprecated)")
     parser.add_argument('--num_workers', type=int, default=3, metavar='N',
                         help='number of parallel processes')
     parser.add_argument('--use_plot', type=lambda x: str(x).lower() == 'true', default=False)
@@ -69,6 +70,8 @@ def parse_arguments():
                         help="测试时是否打印每步信息")
     parser.add_argument('--ev_demand_path', type=str, default=None,
                         help="EV需求csv路径。支持绝对路径或相对于项目根目录的路径。")
+    parser.add_argument('--allow_legacy_dss', type=lambda x: str(x).lower() == 'true', default=False,
+                        help="是否允许执行已软废弃的 dss 模式（默认 false）")
     arguments = parser.parse_args()
     return arguments
 
@@ -709,9 +712,17 @@ def run_episodic_ppo_agent(args, worker_idx=None):
 
 
 def run_dss_agent(args):
-    """
+    """运行 legacy dss 基线路径（已软废弃，仅保留兼容）。"""
+    deprecate_msg = (
+        "`--mode dss` is legacy and soft-deprecated in DSSGym because EV-battery behavior "
+        "is not fully represented by OpenDSS internal controllers."
+    )
+    warnings.warn(deprecate_msg, DeprecationWarning, stacklevel=2)
+    print(f"[DEPRECATED] {deprecate_msg}")
+    if not getattr(args, 'allow_legacy_dss', False):
+        print("[DEPRECATED] 已跳过 dss 模式执行。若需继续，请显式传入 `--allow_legacy_dss true`。")
+        return
 
-    """
     # 获取环境
     env = make_env(args.env_name, dss_act=True, runtime_config=build_runtime_config(args))
     env.seed(args.seed)
@@ -726,10 +737,21 @@ def run_dss_agent(args):
         episode_steps = 0
         done = False
         load_profile_idx = random.choice(profiles)
-        obs = env.reset(seed=args.seed,load_profile_idx=load_profile_idx)
+        reset_result = env.reset(seed=args.seed, options={'load_profile_idx': load_profile_idx})
+        if isinstance(reset_result, tuple):
+            obs = reset_result[0]
+        else:
+            obs = reset_result
 
         while not done:
-            next_obs, reward, done, info = env.dss_step()
+            step_result = env.dss_step()
+            if isinstance(step_result, tuple) and len(step_result) == 5:
+                next_obs, reward, terminated, truncated, info = step_result
+                done = terminated or truncated
+            elif isinstance(step_result, tuple) and len(step_result) == 4:
+                next_obs, reward, done, info = step_result
+            else:
+                raise RuntimeError(f"Unexpected dss_step return format: {type(step_result)}")
             episode_steps += 1
             total_num_steps += 1
             episode_reward += reward
