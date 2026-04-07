@@ -32,7 +32,9 @@ class CustomActionWrapper(gym.ActionWrapper):
             self.ev_act_num = self.original_nvec[self.sto_num] if self.sto_num < self.bat_num else 0
 
             # 创建统一的离散动作空间
-            self.action_space = gym.spaces.MultiDiscrete([self.storage_act_num] * self.bat_num)
+            # 当sto_num=0时，直接使用EV维度基数，避免出现MultiDiscrete([0, ...])无效空间
+            unified_act_num = self.storage_act_num if self.sto_num > 0 else max(int(self.ev_act_num), 1)
+            self.action_space = gym.spaces.MultiDiscrete([unified_act_num] * self.bat_num)
         else:
             # 连续动作空间，统一为[0,1]区间
             self.action_space = gym.spaces.Box(
@@ -46,10 +48,14 @@ class CustomActionWrapper(gym.ActionWrapper):
         if self.is_discrete:
             # 处理离散动作空间
             mapped_action = np.array(action, dtype=int)
-            # 储能设备保持原有动作范围
-            mapped_action[:self.sto_num] = action[:self.sto_num]
-            # 非储能设备仅使用前半部分动作范围（不放电）
-            mapped_action[self.sto_num:] = action[self.sto_num:] // 2
+            if self.sto_num > 0:
+                # 储能设备保持原有动作范围
+                mapped_action[:self.sto_num] = action[:self.sto_num]
+                # 非储能设备仅使用前半部分动作范围（不放电）
+                mapped_action[self.sto_num:] = action[self.sto_num:] // 2
+            else:
+                # 全部为EV时，原始动作空间已是“仅充电”范围，直接透传
+                mapped_action[:] = action[:]
             return mapped_action
         else:
             # 处理连续动作空间

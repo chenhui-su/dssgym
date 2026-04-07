@@ -17,6 +17,7 @@ class RewardMonitorCallback(BaseCallback):
         super().__init__(verbose)
         self.log_freq = log_freq
         self.rewards = []
+        self._seen_rewards = set()
         self.episode_rewards = []
         self.current_episode_rewards = []
         self.output_path = output_path
@@ -26,9 +27,11 @@ class RewardMonitorCallback(BaseCallback):
             latest_rewards = [ep_info["r"] for ep_info in self.model.ep_info_buffer]
             if len(latest_rewards) > 0:
                 for reward in latest_rewards:
-                    if reward not in self.rewards:
-                        self.rewards.append(reward)
-                        self.episode_rewards.append(reward)
+                    reward_key = float(reward)
+                    if reward_key not in self._seen_rewards:
+                        self._seen_rewards.add(reward_key)
+                        self.rewards.append(reward_key)
+                        self.episode_rewards.append(reward_key)
 
         if hasattr(self.training_env, "buf_rews"):
             step_rewards = self.training_env.buf_rews

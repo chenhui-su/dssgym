@@ -21,28 +21,26 @@ Note:
 """
 
 #%% 导入区
+import logging
 from typing import List, Dict, Any, Optional, Union, Tuple
 
 #%% 预设区
 
-"""
-下面是禁用print的代码，根据Claude3.7，其作用范围：
-    1. 该文件不会影响重定义之前执行的print代码【当函数被定义时，Python不会立即确定函数内的print指向哪个对象，而是在函数被调用执行时才解析print的引用。即使函数定义在print重定义之前，只要函数调用在重定义之后，该函数内的print就会使用重定义后的版本。】
-    2. 其他文件导入了这个模块但没有显式导入 print 函数，其他文件中的 print 调用不会受到影响
-    3. 如果其他文件使用 from ev_bms_v01 import *，可能会导入重定义的 print 函数
+_LOGGER = logging.getLogger(__name__)
+_LOGGER.addHandler(logging.NullHandler())
+# 仅在本模块内部控制日志，不影响全局/root logger 行为
+_LOGGER.propagate = False
 
-当主程序导入EVBMS后：
-    1. 主程序中的print调用不会被禁用，仍会正常输出
-    2. 但是EVBMS类内部的所有print调用会被禁用，因为：
-        2.1 类定义时已在模块作用域内重定义了print
-        2.2 类方法调用时会使用模块作用域内的print定义
-        2.3 即使是在主程序中实例化的EVBMS对象，其方法内的print也会被禁用
-"""
 
-# 保存原始print函数
-original_print = print
-# 重定义为无操作函数
-print = lambda *args, **kwargs: None
+def _ensure_local_console_handler() -> None:
+    """仅为本模块添加一次本地控制台handler，不改全局logging配置。"""
+    if any(getattr(handler, "_evbms_local_handler", False) for handler in _LOGGER.handlers):
+        return
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter("[EVBMS] %(levelname)s: %(message)s"))
+    handler._evbms_local_handler = True
+    _LOGGER.addHandler(handler)
+    _LOGGER.setLevel(logging.INFO)
 
 
 #%% 正文区
@@ -64,7 +62,9 @@ class EVBMS:
                  max_battery_charge_power: float = 60.0,
                  initial_soc: float = 0.2,
                  charge_protocol: int = 0,
-                 enable_power_demand: bool = True):
+                 enable_power_demand: bool = True,
+                 log_enabled: bool = False,
+                 log_to_console: bool = False):
         """
         初始化EVBMS
 
@@ -74,6 +74,8 @@ class EVBMS:
             initial_soc: 初始SOC百分比(0-1)
             charge_protocol: 充电协议类型(0=多段恒流, 1=上升-平台-衰减, 2=恒功率)
             enable_power_demand: 是否启用功率需求计算逻辑
+            log_enabled: 是否启用EVBMS运行日志
+            log_to_console: 是否将EVBMS日志输出到控制台（仅影响本模块logger）
         """
         # 基础参数
         self.battery_capacity = battery_capacity  # 电池容量(kWh)
@@ -81,6 +83,10 @@ class EVBMS:
         self.current_soc = initial_soc  # 当前电量百分比(0-1)
         self.charge_protocol = charge_protocol  # 充电协议
         self.enable_power_demand = enable_power_demand  # 是否启用功率需求计算
+        self.log_enabled = log_enabled
+
+        if log_to_console:
+            _ensure_local_console_handler()
 
         self.charger_power = None
 
@@ -97,6 +103,11 @@ class EVBMS:
         self.is_charging = False  # 是否正在充电
         self.charging_duration = 0  # 充电持续时间(秒)
 
+    def _log(self, level: int, message: str) -> None:
+        """实例级日志开关，默认静默。"""
+        if self.log_enabled:
+            _LOGGER.log(level, message)
+
     def start_charging(self, charger_power: float) -> float:
         """
         开始充电
@@ -109,7 +120,7 @@ class EVBMS:
             实际充电功率(kW)
         """
         if self.is_charging:
-            print("已经在充电中")
+            self._log(logging.INFO, "已经在充电中")
             return self.current_charge_power
 
         self.is_charging = True
@@ -131,7 +142,7 @@ class EVBMS:
             充电会话统计
         """
         if not self.is_charging:
-            print("没有正在进行的充电")
+            self._log(logging.INFO, "没有正在进行的充电")
             return None
 
         start_soc = self.charging_history[0]['soc'] if self.charging_history else self.current_soc
@@ -164,7 +175,7 @@ class EVBMS:
             更新后的充电功率(kW)
         """
         if not self.is_charging:
-            print("没有正在进行的充电")
+            self._log(logging.INFO, "没有正在进行的充电")
             return 0.0
 
         # 更新充电时间
@@ -287,12 +298,12 @@ class EVBMS:
         """
         if self.charger_power is None:
             self.charger_power = charger_power
-            print(f"设置{self.charger_power=}成功。")
+            self._log(logging.INFO, f"设置{self.charger_power=}成功。")
         elif self.charger_power <= 10:  # BMS charger_power <= 10 可重设
-            print(f"历史设置{self.charger_power=}已更新为{charger_power}。")
+            self._log(logging.INFO, f"历史设置{self.charger_power=}已更新为{charger_power}。")
             self.charger_power = charger_power
         else:
-            print(f'历史设置{self.charger_power=}，无法更新为{charger_power=}。')
+            self._log(logging.WARNING, f"历史设置{self.charger_power=}，无法更新为{charger_power=}。")
             charger_power = self.charger_power
         
         return charger_power
@@ -315,7 +326,7 @@ class EVBMS:
         if self.enable_power_demand is False:
             # 不启用功率需求计算，直接返回充电桩功率
             self.power_demand = 0.0  # 清空功率需求值
-            print(f"功率需求已禁用，直接使用桩侧设置功率: {charger_power:.2f} kW。")
+            self._log(logging.INFO, f"功率需求已禁用，直接使用桩侧设置功率: {charger_power:.2f} kW。")
             return charger_power
 
         # 更新充电桩功率
@@ -328,7 +339,10 @@ class EVBMS:
         # 比较功率需求与充电桩功率，取较小值
         power = min(charger_power, self.power_demand)
 
-        print(f"功率需求: {self.power_demand:.2f} kW, 充电桩功率: {charger_power:.2f} kW, 最终充电功率: {power:.2f} kW。")
+        self._log(
+            logging.INFO,
+            f"功率需求: {self.power_demand:.2f} kW, 充电桩功率: {charger_power:.2f} kW, 最终充电功率: {power:.2f} kW。"
+        )
 
         return power
 
@@ -393,7 +407,7 @@ class EVBMS:
         """
         # 验证SOC值是否在有效范围内
         if not (0 <= new_soc <= 1):
-            print(f"错误: SOC值 {new_soc} 超出有效范围(0-1)。")
+            self._log(logging.ERROR, f"错误: SOC值 {new_soc} 超出有效范围(0-1)。")
             return False
 
         # 更新SOC
@@ -406,9 +420,9 @@ class EVBMS:
             charger_power = self.charger_power
             new_power = self.calculate_charge_power(charger_power)
             self.set_charge_power(new_power)
-            print(f"SOC从 {old_soc:.2f} 更新为 {new_soc:.2f}, 充电功率调整为 {new_power:.2f} kW。")
+            self._log(logging.INFO, f"SOC从 {old_soc:.2f} 更新为 {new_soc:.2f}, 充电功率调整为 {new_power:.2f} kW。")
         else:
-            print(f"SOC从 {old_soc:.2f} 更新为 {new_soc:.2f}。")
+            self._log(logging.INFO, f"SOC从 {old_soc:.2f} 更新为 {new_soc:.2f}。")
 
         return True
 

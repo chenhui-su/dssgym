@@ -760,21 +760,20 @@ def test_results_analysis(results_dir, index=0):
     if os.path.exists(storage_file):
         storage_data = load_storage_data(storage_file)
     
-    # 读取光伏数据
-    pv_file = os.path.join(r'\dssgym\systems',
-                           '1-day-900-s-Solar-2-Average-Pad-06.csv')
+    # 读取光伏数据（优先使用项目相对路径，兼容跨平台）
+    pv_filename = '1-day-900-s-Solar-2-Average-Pad-06.csv'
+    pv_file = Path(__file__).resolve().parent / 'systems' / pv_filename
     pv_data = None
-    if os.path.exists(pv_file):
+    if pv_file.exists():
         print(f"找到光伏数据文件: {pv_file}")
-        pv_data = load_pv_data(pv_file, rated_power=80)  # 设置额定功率为80kW
+        pv_data = load_pv_data(str(pv_file), rated_power=80)  # 设置额定功率为80kW
     else:
         print(f"警告: 找不到光伏数据文件: {pv_file}")
         # 尝试使用相对路径
-        alt_pv_file = os.path.join(os.path.dirname(os.path.dirname(results_dir)), 
-                                  'systems', '1-day-900-s-Solar-2-Average-Pad-06.csv')
-        if os.path.exists(alt_pv_file):
+        alt_pv_file = Path(results_dir).resolve().parent.parent / 'systems' / pv_filename
+        if alt_pv_file.exists():
             print(f"找到替代光伏数据文件: {alt_pv_file}")
-            pv_data = load_pv_data(alt_pv_file, rated_power=80)
+            pv_data = load_pv_data(str(alt_pv_file), rated_power=80)
 
     # 生成调度矩阵图
     plt.figure()
