@@ -43,9 +43,6 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 
-import math  # 单纯为向上取整引入，有点亏
-
-
 # %% 辅助函数
 def plotting(env, profile, episode_step, show_voltages=True) -> None:
     """ 使用负载配置在某一回合步骤中绘制网络状态

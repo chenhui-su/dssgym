@@ -19,7 +19,7 @@ def convert_linecode_60Hz_to_50Hz(input_file, output_file):
     """
     # 定义正则表达式，用于识别BaseFreq, xmatrix和rmatrix行
     basefreq_pattern = re.compile(r'(BaseFreq\s*=\s*)(\d+)', re.IGNORECASE)
-    xmatrix_pattern = re.compile(r'~\s*xmatrix\s*=\s*(\[.*?\]|\(.*?\))', re.IGNORECASE | re.DOTALL)  # Claude3.7的狡辩：尽管在r-string中 \[ 和 \] 技术上是冗余的转义，但它们在这里是完全可以接受的，并不会影响表达式的功能。
+    xmatrix_pattern = re.compile(r'~\s*xmatrix\s*=\s*(\[.*?]|\(.*?\))', re.IGNORECASE | re.DOTALL)
 
     # 读取输入文件
     with open(input_file, 'r') as f:
