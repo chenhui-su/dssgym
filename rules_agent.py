@@ -565,13 +565,12 @@ def test_rules_agent(output_dir=None, args=None, load_profile_idx=0,
     #         images = []
     #         filenames = sorted(glob.glob(os.path.join(plot_dir, "node_voltage_*.png")))
     #         for filename in filenames:
-    #             images.append(imageio.imread(filename))
+    #             images.append(iio.imread(filename))
     #
     #         if images:  # 确保有图像才生成GIF
-    #             imageio.mimsave(
+    #             iio.imwrite(
     #                 os.path.join(plot_dir, 'node_voltage.gif'),
-    #                 images,
-    #                 fps=2,
+    #                 np.stack(images, axis=0),
     #                 loop=0,
     #                 duration=500
     #             )
@@ -727,7 +726,7 @@ if __name__ == '__main__':
 
         try:
             import matplotlib.pyplot as plt
-            import imageio
+            import imageio.v3 as iio
         except ImportError:
             print("警告: 缺少绘图或生成动画所需的库。请安装 matplotlib 和 imageio。")
             args.use_plot = False

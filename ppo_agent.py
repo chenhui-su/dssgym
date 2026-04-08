@@ -2,13 +2,13 @@
 # SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0 OR LicenseRef-DSSGym-Commercial
 # Copyright (c) 2025 Su Chenhui
 # @File: ppo_agent.py
-# @Time: 2025/3/12 下午6:24
+# @Time: 2025/3/12 18:24
 # @Author: Gan Mocai
-# @Software: PyCharm
+# @Software: PyCharm, VSCode
 
 """
 主程序
-使用SB3的PPO算法训练智能体，使用实现的DSSGym环境进行电力系统仿真。
+使用 SB3 的 PPO 算法训练智能体，使用实现的DSSGym环境进行电力系统仿真。
 
 算法调参：
     1. 自定义PPO网络参数的方式可见 https://kimi.moonshot.cn/chat/cv8ol6kchmtsrgk9q630
@@ -24,7 +24,7 @@ from dssgym.reward_monitor_callback import RewardMonitorCallback
 
 import matplotlib.pyplot as plt
 import numpy as np
-import imageio.v2 as imageio  # 兼容旧版接口
+import imageio.v3 as iio
 import glob
 
 import argparse
@@ -438,14 +438,13 @@ def test_ppo_agent(model=None, model_path=None, output_dir=None, args=None, load
             images = []
             filenames = sorted(glob.glob(os.path.join(plot_dir, "node_voltage_*.png")))
             for filename in filenames:
-                images.append(imageio.imread(filename))
+                images.append(iio.imread(filename))
 
             if images:  # 确保有图像才生成GIF
                 # 使用更好的参数设置来确保动画效果
-                imageio.mimsave(
+                iio.imwrite(
                     os.path.join(plot_dir, 'node_voltage.gif'),
-                    images,
-                    fps=2,  # 提高帧率使动画更流畅
+                    np.stack(images, axis=0),
                     loop=0,  # 0表示无限循环
                     duration=500  # 每帧显示500毫秒
                 )
