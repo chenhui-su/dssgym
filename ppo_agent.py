@@ -87,6 +87,9 @@ def build_runtime_config(args):
 def seeding(seed) -> None:
     """
     统一设置随机种子，包括numpy、random和os环境变量
+    场景说明：
+        - 默认入口使用该函数，提供轻量且跨平台稳定的基础可复现能力
+        - 不触发 PyTorch/CUDA 的确定性开关，避免额外性能损耗
     Args:
         seed: 随机种子
     """
@@ -98,6 +101,9 @@ def seeding(seed) -> None:
 def seeding_all(seed) -> None:
     """
     统一设置随机种子，包括numpy、random、os环境变量和PyTorch
+    场景说明：
+        - 当需要严格复现包含 PyTorch/CUDA 的训练路径时使用
+        - 可能降低 GPU 训练性能（开启 deterministic，关闭 benchmark）
     Args:
         seed: 随机种子
     """
@@ -764,6 +770,7 @@ def run_dss_agent(args):
 
 if __name__ == '__main__':
     args = parse_arguments()
+    # 默认走基础种子方案；若需要更严格的 torch/cuda 可复现，可切换为 seeding_all(args.seed)。
     seeding(args.seed)
     if args.test_only:
         if not os.path.exists(args.model_path):
