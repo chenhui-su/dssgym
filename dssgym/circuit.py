@@ -91,7 +91,8 @@ class Circuits:
 
         # initialization
         self.initialize()  # 初始化过程使用 _gen_bat_obj 从csv文件添加
-        self.storage_batteries.update(self.batteries)  # 对初始电池字典进行浅拷贝
+        # 仅在初始化阶段快照“静态储能电池集合”；后续 EV 动态接入/断开仅更新 self.batteries。
+        self.storage_batteries.update(self.batteries)
 
         # 添加对电池控制器以及EV充电站的可引用性
         self.battery_controller = None
@@ -823,6 +824,8 @@ class Circuits:
             self.bus_obj[bus].append(loadname)
 
     def add_batteries(self, batname, bus, phases, feature):
+        # 全量电池注册入口：包含初始储能电池与运行时接入的 EV 电池。
+        # 注意：此处不更新 storage_batteries，避免把动态 EV 混入固定储能集合。
         self.batteries[batname] = Battery(self.dss, batname, bus, phases, feature,
                                           bat_act_num=self.bat_act_num)
         if bus not in self.bus_obj:
