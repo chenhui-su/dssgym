@@ -467,6 +467,12 @@ if __name__ == "__main__":
         default=os.getenv("DSSGYM_EV_DISTRIBUTION_PATH"),
         help="分布文件目录，支持绝对路径或相对当前目录路径。也可通过环境变量 DSSGYM_EV_DISTRIBUTION_PATH 设置。",
     )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=22,
+        help="随机种子，用于重现结果。默认值为 22。",
+    )
     args = parser.parse_args()
 
     if not args.base_path:
@@ -492,8 +498,8 @@ if __name__ == "__main__":
         dist_location, dist_day_type = base_name, "default"
 
     # 2. 生成EV需求数据
-    np.random.seed(22)  # 设置随机种子 in conference paper 22
-    ev_demand = generate_ev_demand(Num_EVs, base_path)
+    np.random.seed(args.seed)
+    ev_demand = generate_ev_demand(Num_EVs, base_path, seed=args.seed)
 
     # 从生成的需求数据中提取必要信息用于后续处理
     arrive_time = {i: ev_demand[i]["arrive_time"] for i in range(Num_EVs)}
