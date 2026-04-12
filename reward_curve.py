@@ -19,38 +19,43 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 # 定义中英文字体映射
-plt.rcParams['font.family'] = ['serif', 'sans-serif']
+plt.rcParams["font.family"] = ["serif", "sans-serif"]
 # # 设置英文和数字字体为 Times New Roman
-plt.rcParams['font.serif'] = ['Times New Roman'] + plt.rcParams['font.serif']
+plt.rcParams["font.serif"] = ["Times New Roman"] + plt.rcParams["font.serif"]
 # 设置中文字体为宋体
-plt.rcParams['font.sans-serif'] = ['SimSun'] + plt.rcParams['font.sans-serif']
+plt.rcParams["font.sans-serif"] = ["SimSun"] + plt.rcParams["font.sans-serif"]
 # 解决坐标轴负数的负号显示问题
-plt.rcParams['axes.unicode_minus'] = False
+plt.rcParams["axes.unicode_minus"] = False
 
 # 其他字体属性设置
 # plt.rcParams['font.weight'] = 'bold'
-plt.rcParams['font.size'] = 12
+plt.rcParams["font.size"] = 12
 
-def plot_training_reward(csv_path, index:int=0):
+
+def plot_training_reward(csv_path, index: int = 0, show: bool = None):
     """
 
     Args:
         csv_path: 训练过程奖励数据的CSV文件路径。
         index: 图片后缀，便于区分，防止覆盖。
+        show: 是否显示图表，None 时自动检测无头环境
 
     Returns:
         None
     """
+    if show is None:
+        show = plt.get_backend() != "Agg"
+
     df = pd.read_csv(csv_path)
 
     # 确保数据类型正确（将step和reward列转换为数值类型）
-    df["step"] = pd.to_numeric(df["step"], errors="coerce") # 其实是episode
+    df["step"] = pd.to_numeric(df["step"], errors="coerce")  # 其实是episode
     df["reward"] = pd.to_numeric(df["reward"], errors="coerce")
 
     # 使用窗口大小100计算移动平均回合奖励
     window = 100
     # 在DataFrame上直接计算移动平均
-    df['rewards_ma'] = df['reward'].rolling(window=window, min_periods=1).mean()
+    df["rewards_ma"] = df["reward"].rolling(window=window, min_periods=1).mean()
 
     episodes = df["step"].tolist()  # 需要时再转换为列表
     rewards = df["reward"].tolist()
@@ -58,9 +63,9 @@ def plot_training_reward(csv_path, index:int=0):
 
     # print(episodes, rewards, rewards_ma)
 
-    plt.figure(figsize=(16/2.54, 10/2.54))
-    plt.plot(episodes, rewards, 'b-', alpha=0.3, label="单回合奖励")
-    plt.plot(episodes, rewards_ma, 'r-', linewidth=2, label="移动平均奖励")
+    plt.figure(figsize=(16 / 2.54, 10 / 2.54))
+    plt.plot(episodes, rewards, "b-", alpha=0.3, label="单回合奖励")
+    plt.plot(episodes, rewards_ma, "r-", linewidth=2, label="移动平均奖励")
     # 自动调整Y轴范围，使图像更清晰
     # 这里使用极低分位和最大值作为显示范围的经验裁剪，并非 5% / 95% 分位
     reward_q1 = pd.Series(rewards).quantile(0.000005)
@@ -72,22 +77,32 @@ def plot_training_reward(csv_path, index:int=0):
     plt.xlabel("回合")
     plt.ylabel("奖励")
     plt.title("训练过程奖励曲线")
-    plt.legend(loc='upper left', borderaxespad=0)
+    plt.legend(loc="upper left", borderaxespad=0)
     plt.grid(True)
-    plt.savefig(f'training_reward_curve_{index:02d}_{datetime.datetime.now().strftime("%Y%m%d")}.png', dpi=300)  # 保存图像
-    plt.show()
+    plt.savefig(
+        f"training_reward_curve_{index:02d}_{datetime.datetime.now().strftime('%Y%m%d')}",
+        dpi=300,
+    )  # 保存图像
+    if show:
+        plt.show()
+    else:
+        plt.close()
 
 
-def plot_test_reward(csv_path, index:int=0):
+def plot_test_reward(csv_path, index: int = 0, show: bool = None):
     """
     根据测试结果CSV文件绘制奖励曲线。
     Args:
         csv_path: 测试结果CSV文件的路径，包含各奖励函数分项及总奖励数据。
         index: 图片后缀，便于区分，防止覆盖。
+        show: 是否显示图表，None 时自动检测无头环境
 
     Returns:
         None
     """
+    if show is None:
+        show = plt.get_backend() != "Agg"
+
     df = pd.read_csv(csv_path)
     plt.figure(figsize=(10, 6))
     # 假设CSV包含各奖励函数分项及总奖励数据，绘制所有曲线
@@ -98,17 +113,32 @@ def plot_test_reward(csv_path, index:int=0):
     plt.title("Test Reward Curve")
     plt.legend()
     plt.grid(True)
-    plt.savefig(f'test_reward_curve_{index:02d}_{datetime.datetime.now().strftime("%Y%m%d")}.png', dpi=300)  # 保存图像
-    plt.show()
+    plt.savefig(
+        f"test_reward_curve_{index:02d}_{datetime.datetime.now().strftime('%Y%m%d')}.png",
+        dpi=300,
+    )  # 保存图像
+    if show:
+        plt.show()
+    else:
+        plt.close()
 
 
 def main():
     parser = argparse.ArgumentParser(description="根据CSV数据绘制奖励曲线")
-    parser.add_argument("mode", choices=["train", "test"], help="选择绘制训练或测试奖励曲线")
-    parser.add_argument("csv_paths", nargs='+',
-                        help="奖励数据CSV文件的路径，如：path/to/rewards_in_training.csv，可输入多个路径")
-    parser.add_argument("--indices", type=int, nargs='*',
-                        help="图表索引值，与CSV路径一一对应，不指定时自动从0开始编号")
+    parser.add_argument(
+        "mode", choices=["train", "test"], help="选择绘制训练或测试奖励曲线"
+    )
+    parser.add_argument(
+        "csv_paths",
+        nargs="+",
+        help="奖励数据CSV文件的路径，如：path/to/rewards_in_training.csv，可输入多个路径",
+    )
+    parser.add_argument(
+        "--indices",
+        type=int,
+        nargs="*",
+        help="图表索引值，与CSV路径一一对应，不指定时自动从0开始编号",
+    )
     args = parser.parse_args()
 
     # 处理索引值，如果未提供或提供的数量不足，则自动补充
@@ -121,9 +151,9 @@ def main():
 
     for i, csv_path in enumerate(args.csv_paths):
         if args.mode == "train":
-                plot_training_reward(csv_path, indices[i])
+            plot_training_reward(csv_path, indices[i])
         elif args.mode == "test":
-                plot_test_reward(csv_path, indices[i])
+            plot_test_reward(csv_path, indices[i])
 
 
 if __name__ == "__main__":
@@ -152,4 +182,3 @@ if __name__ == "__main__":
     # ]
     # for index, path in enumerate(path_list):
     #     plot_training_reward(path, index+1)
-
