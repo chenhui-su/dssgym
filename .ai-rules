@@ -1,3 +1,25 @@
+# Python Environment Selection Procedure
+
+当需要确定项目使用的 Python 环境时，遵循以下优先级：
+
+1. **IDE 集成环境**: 优先使用 IDE（如 PyCharm、VSCode）中配置的 Python 解释器路径，可尝试通过 IDE 配置文件获取（如 `.idea/`、`/.vscode/settings.json` 中的 `python.defaultInterpreterPath`）
+
+2. **Conda 虚拟环境配置**: 
+   - 查找 `environment.yml` 或 `conda.yml` 中的 `name` 字段
+   - 查找 `.conda env list` 命令输出的环境列表
+   - 使用 `conda env list` 或 `conda info --envs` 获取已安装环境
+
+3. **Poetry/Pipenv**: 优先使用 `pyproject.toml` 或 `Pipfile` 所在目录对应的虚拟环境
+
+4. **venv/irtualenv**: 仅当项目根目录存在 `venv/` 或 `.venv/` 目录时使用
+
+**禁止事项**:
+- 禁止直接使用 conda 的 base 环境
+- 禁止使用系统全局 Python（如 `/usr/bin/python`、`C:\Python312\python.exe`）
+- 禁止在没有检查项目配置文件的情况下臆测虚拟环境路径
+
+---
+
 # Git Commit Message Protocol
 
 所有的 Git 提交信息必须遵循以下格式：
@@ -10,11 +32,15 @@
 ## 约束条件：
 - **type 必须是**: feat, fix, docs, style, refactor, perf, test, build, ci, chore, revert 之一。
 - **subject**: 长度限制在 50 字符内，概括核心变更。
-- **body (正文) 强制要求**:
+- **body 强制要求**:
+  - 不能只有标题行，必须包含 body。
   - 必须使用无序列表（以 `-` 开头）分项列出具体变更内容。
-  - 每项内容应简洁明确，涵盖“做了什么”及“为什么做”。
+  - 每项内容应简洁明确，说明一个具体的改动，涵盖"做了什么"及"为什么做"。
+  - 涉及算法或公式变更时，注明关键参数或推导要点。
+  - 涉及接口变更时，注明新旧签名的区别。
+  - 如有破坏性变更，用 `BREAKING CHANGE:` 开头单独列出。
   - 项与项之间不留空行。
-- **语言**: 中文。
+- **语言**: 优先使用英文。
 - **禁止事项**: 
   - 禁止生成冗余的自我总结或描述性段落（如“在这个提交中，我...”）。
   - 禁止在 body 中使用纯文本段落，必须全部列表化。
