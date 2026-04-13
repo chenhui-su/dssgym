@@ -6,7 +6,7 @@
 # @Author: Gan Mocai
 # @Software: PyCharm, VS Code
 
-"""
+r"""
 根据历史奖励数据的csv绘制奖励曲线，包括：
     1. 训练奖励曲线——回合奖励和历史平均奖励，数据来源csv文件，路径示例：D:\LENOVO\Documents\Python\ML\powergym\results_20250503_165005_13Bus_1000000\rewards_in_training.csv
     2. 测试奖励曲线——各奖励函数子项曲线和总曲线，数据来源csv文件，路径示例：D:\LENOVO\Documents\Python\ML\powergym\results_20250503_165005_13Bus_1000000\test_results_20250504_011214\rewards.csv
@@ -14,8 +14,14 @@
 
 import argparse
 import datetime
+import os
 
+import matplotlib
 import pandas as pd
+
+# 默认使用无头后端，避免部分 Windows 环境在 GUI 后端下触发 python.exe 进程崩溃。
+# 需要交互显示时可通过环境变量 DSSGYM_MPL_BACKEND 覆盖，例如 TkAgg / QtAgg。
+matplotlib.use(os.getenv("DSSGYM_MPL_BACKEND", "Agg"))
 import matplotlib.pyplot as plt
 
 # 定义中英文字体映射
@@ -32,6 +38,36 @@ plt.rcParams["axes.unicode_minus"] = False
 plt.rcParams["font.size"] = 12
 
 
+def _auto_should_show() -> bool:
+    """根据后端和运行环境自动判断是否应调用 plt.show()。"""
+    backend = (plt.get_backend() or "").lower()
+    non_interactive_tokens = (
+        "agg",
+        "pdf",
+        "ps",
+        "svg",
+        "pgf",
+        "cairo",
+        "template",
+        "inline",
+    )
+    if any(token in backend for token in non_interactive_tokens):
+        return False
+
+    # Linux/macOS 无显示会话时，避免 show 阻塞或报错
+    if os.name != "nt" and not (
+        os.environ.get("DISPLAY") or os.environ.get("WAYLAND_DISPLAY")
+    ):
+        return False
+    return True
+
+
+def _resolve_show_option(show_option: str) -> bool | None:
+    if show_option == "auto":
+        return None
+    return show_option == "true"
+
+
 def plot_training_reward(csv_path, index: int = 0, show: bool = None):
     """
 
@@ -44,7 +80,7 @@ def plot_training_reward(csv_path, index: int = 0, show: bool = None):
         None
     """
     if show is None:
-        show = plt.get_backend() != "Agg"
+        show = _auto_should_show()
 
     df = pd.read_csv(csv_path)
 
@@ -80,7 +116,8 @@ def plot_training_reward(csv_path, index: int = 0, show: bool = None):
     plt.legend(loc="upper left", borderaxespad=0)
     plt.grid(True)
     plt.savefig(
-        f"training_reward_curve_{index:02d}_{datetime.datetime.now().strftime('%Y%m%d')}",
+        f"training_reward_curve_{index:02d}_{datetime.datetime.now().strftime('%Y%m%d')}.svg",
+        format="svg",
         dpi=300,
     )  # 保存图像
     if show:
@@ -101,7 +138,7 @@ def plot_test_reward(csv_path, index: int = 0, show: bool = None):
         None
     """
     if show is None:
-        show = plt.get_backend() != "Agg"
+        show = _auto_should_show()
 
     df = pd.read_csv(csv_path)
     plt.figure(figsize=(10, 6))
@@ -114,7 +151,8 @@ def plot_test_reward(csv_path, index: int = 0, show: bool = None):
     plt.legend()
     plt.grid(True)
     plt.savefig(
-        f"test_reward_curve_{index:02d}_{datetime.datetime.now().strftime('%Y%m%d')}.png",
+        f"test_reward_curve_{index:02d}_{datetime.datetime.now().strftime('%Y%m%d')}.svg",
+        format="svg",
         dpi=300,
     )  # 保存图像
     if show:
@@ -139,7 +177,14 @@ def main():
         nargs="*",
         help="图表索引值，与CSV路径一一对应，不指定时自动从0开始编号",
     )
+    parser.add_argument(
+        "--show",
+        choices=["auto", "true", "false"],
+        default="auto",
+        help="是否显示图表：auto(默认自动判断)、true(强制显示)、false(强制不显示)",
+    )
     args = parser.parse_args()
+    show = _resolve_show_option(args.show)
 
     # 处理索引值，如果未提供或提供的数量不足，则自动补充
     indices = args.indices if args.indices else []
@@ -151,9 +196,9 @@ def main():
 
     for i, csv_path in enumerate(args.csv_paths):
         if args.mode == "train":
-            plot_training_reward(csv_path, indices[i])
+            plot_training_reward(csv_path, indices[i], show=show)
         elif args.mode == "test":
-            plot_test_reward(csv_path, indices[i])
+            plot_test_reward(csv_path, indices[i], show=show)
 
 
 if __name__ == "__main__":
