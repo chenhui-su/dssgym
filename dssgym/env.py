@@ -425,6 +425,27 @@ class Env(gym.Env):
         self._dss_step_deprecation_warned = False
         self.reset_obs_space()
 
+    def _compute_power_loss_ratio(self):
+        """统一计算功率损耗比率，带除零保护，AI硬要加，无语，负荷怎么可能真的为 0 呢？"""
+        total_power = self.circuit.total_power()[0]
+        total_loss = self.circuit.total_loss()[0]
+        return -total_loss / (total_power + 1e-10) if total_power != 0 else 0.0
+
+    def _build_bat_statuses(self):
+        """统一构建电池状态：固定储能 + 充电连接点状态。"""
+        bat_statuses = {}
+
+        storage_batteries = getattr(self.circuit, 'storage_batteries', {})
+        for name, bat in storage_batteries.items():
+            bat_statuses[name] = [bat.soc, -1 * bat.actual_power() / bat.max_kw]
+
+        if hasattr(self, 'ev_station') and self.ev_station is not None:
+            ev_statuses = self.ev_station.get_all_statuses()
+            for idx, status in enumerate(ev_statuses):
+                bat_statuses[f'charger_{idx:02d}'] = status
+
+        return bat_statuses
+
     def reset_obs_space(self, load_profile_idx=0, wrap_observation=True, observe_load=True):
         """reset the observation space 基于 option of wrapping and load. 此处设置观察空间的维度数和上下限。
 
@@ -651,19 +672,7 @@ class Env(gym.Env):
         # 更新电池信息 kWh. record soc_err and discharge_err
         if self.bat_num > 0:
             soc_errs, dis_errs = self.circuit.set_all_batteries_after_solve()
-            # bat_statuses = {name: [bat.soc, -1 * bat.actual_power() / bat.max_kw] for name, bat in self.circuit.batteries.items()}
-            # 创建包含所有电池的状态字典
-            bat_statuses = {}
-            # 首先添加电路中定义的储能电池
-            for name, bat in self.circuit.storage_batteries.items():
-                bat_statuses[name] = [bat.soc, -1 * bat.actual_power() / bat.max_kw]
-
-            # 然后添加充电站中连接的EV电池
-            if hasattr(self.circuit, 'ev_station') and self.ev_station is not None:
-                ev_statuses = self.ev_station.get_all_statuses()
-                for idx, status in enumerate(ev_statuses):
-                    # 为充电站的每个连接点创建一个虚拟电池状态
-                    bat_statuses[f'charger_{idx:02d}'] = status
+            bat_statuses = self._build_bat_statuses()
         else:
             soc_errs, dis_errs, bat_statuses = [], [], dict()
 
@@ -695,7 +704,7 @@ class Env(gym.Env):
         self.obs['cap_statuses'] = cap_statuses
         self.obs['reg_statuses'] = reg_statuses
         self.obs['bat_statuses'] = bat_statuses
-        self.obs['power_loss'] = - self.circuit.total_loss()[0] / (self.circuit.total_power()[0] + 1e-10)  # 功率损耗和总功率的比值，添加保护防止除零
+        self.obs['power_loss'] = self._compute_power_loss_ratio()
         self.obs['time'] = self.t
 
         # 加入充电站的状态信息——实时信息
@@ -810,22 +819,10 @@ class Env(gym.Env):
         self.obs['reg_statuses'] = reg_statuses
 
         # status of battery
-        # bat_statuses = {name: [bat.soc, -1 * bat.actual_power() / bat.max_kw] for name, bat in
-        #                 self.circuit.batteries.items()}  # 原本
-        bat_statuses = {}
-        # 添加电路中定义的静态储能电池
-        for name, bat in self.circuit.storage_batteries.items():
-            bat_statuses[name] = [bat.soc, -1 * bat.actual_power() / bat.max_kw]
-
-        # 添加充电站EV的初始状态
-        if hasattr(self, 'ev_station') and self.ev_station is not None:
-            ev_statuses = self.ev_station.get_all_statuses()
-            for idx, status in enumerate(ev_statuses):
-                bat_statuses[f'charger_{idx:02d}'] = status
-        self.obs['bat_statuses'] = bat_statuses
+        self.obs['bat_statuses'] = self._build_bat_statuses()
 
         # total power loss
-        self.obs['power_loss'] = -self.circuit.total_loss()[0] / self.circuit.total_power()[0]
+        self.obs['power_loss'] = self._compute_power_loss_ratio()
 
         # time step tracker
         self.obs['time'] = self.t
@@ -912,7 +909,7 @@ class Env(gym.Env):
         self.obs['cap_statuses'] = cap_statuses
         self.obs['reg_statuses'] = reg_statuses
         self.obs['bat_statuses'] = bat_statuses
-        self.obs['power_loss'] = - self.circuit.total_loss()[0] / self.circuit.total_power()[0]
+        self.obs['power_loss'] = self._compute_power_loss_ratio()
         self.obs['time'] = self.t
         if self.observe_load:
             self.obs['load_profile_t'] = self.all_load_profiles.iloc[self.t % self.horizon].to_dict()
@@ -1233,8 +1230,7 @@ class Env(gym.Env):
         # 更新电池信息 kWh. record soc_err and discharge_err
         if self.bat_num > 0:
             soc_errs, dis_errs = self.circuit.set_all_batteries_after_solve()
-            bat_statuses = {name: [bat.soc, -1 * bat.actual_power() / bat.max_kw] for name, bat in
-                            self.circuit.batteries.items()}
+            bat_statuses = self._build_bat_statuses()
         else:
             soc_errs, dis_errs, bat_statuses = [], [], dict()
 
@@ -1252,7 +1248,7 @@ class Env(gym.Env):
         self.obs['cap_statuses'] = cap_statuses
         self.obs['reg_statuses'] = reg_statuses
         self.obs['bat_statuses'] = bat_statuses
-        self.obs['power_loss'] = - self.circuit.total_loss()[0] / self.circuit.total_power()[0]
+        self.obs['power_loss'] = self._compute_power_loss_ratio()
         self.obs['time'] = self.t
         if self.observe_load:
             self.obs['load_profile_t'] = self.all_load_profiles.iloc[self.t % self.horizon].to_dict()  # 截取负载曲线包括在obs中
@@ -1310,12 +1306,11 @@ class Env(gym.Env):
         self.obs['reg_statuses'] = reg_statuses
 
         # status of battery
-        bat_statuses = {name: [bat.soc, -1 * bat.actual_power() / bat.max_kw] for name, bat in
-                        self.circuit.batteries.items()}
+        bat_statuses = self._build_bat_statuses()
         self.obs['bat_statuses'] = bat_statuses
 
         # total power loss
-        self.obs['power_loss'] = -self.circuit.total_loss()[0] / self.circuit.total_power()[0]
+        self.obs['power_loss'] = self._compute_power_loss_ratio()
 
         # time step tracker
         self.obs['time'] = self.t

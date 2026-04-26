@@ -1,0 +1,7 @@
+# 核心规则：让 Git 自动检测文本文件，并强制所有文本文件在工作区和仓库中均保持 LF 换行符
+* text=auto eol=lf
+
+# 补充规则：针对 Git 启发式算法可能误判的文件，显式声明为文本并强制 LF
+*.svg text eol=lf
+*.csv text eol=lf
+*.json text eol=lf
