@@ -32,7 +32,7 @@ conda activate dssgym-py312
 
 说明：
 - 推荐 Python 版本：`3.12`。
-- 依赖安装策略为 `conda + pip` 混合模式（见 [environment.yml](./environment.yml) 与 [requirements-pip.txt](./requirements-pip.txt)）。
+- 依赖安装策略为 `conda + pip` 混合模式（见 [environment.yml](./environment.yml) 与 [requirements.txt](./requirements.txt)）。
 - 纯 pip 安装可参考 [requirements.txt](./requirements.txt)，但不作为默认路径。
 - 运行前请确认本机 OpenDSS 相关动态库可被 `dss-python` 正常加载。
 
