@@ -399,6 +399,9 @@ class Env(gym.Env):
         self.ev_station_bus = info['bus_name']   # 用于保存到训练信息
         self.ev_charger_num = info['num_chargers']  # 用于保存到训练信息
         self.ev_charger_kW = info['charger_kW'] # 用与保存到训练信息
+        self.phase_unbalance_threshold = float(info.get('phase_unbalance_threshold', 0.01))
+        self.phase_unbalance_scope = str(info.get('phase_unbalance_scope', 'station_local')).strip().lower()
+        self.phase_unbalance_custom_buses = info.get('phase_unbalance_custom_buses', [])
         self.ev = load_ev_from_csv(info['ev_demand'])  # EV信息
         self.ev_controller = BatteryController(self.circuit)
         self.circuit.battery_controller = self.ev_controller
@@ -407,6 +410,8 @@ class Env(gym.Env):
                                                 self.ev['max_power'] ,self.ev['initial_soc'], self.ev['target_soc'],
                                                 self.ev['capacity'],self.ev['curve_type'])
         self.circuit.ev_station = self.ev_station  # 将充电站添加到电路引用
+        self.phase_config = dict()
+        self._build_phase_config(info)
 
         # 检查参数范围
         assert self.cap_num >= 0 and self.reg_num >= 0 and self.bat_num >= 0 and \
@@ -445,6 +450,231 @@ class Env(gym.Env):
                 bat_statuses[f'charger_{idx:02d}'] = status
 
         return bat_statuses
+
+    @staticmethod
+    def _normalize_phase_labels(phases):
+        """标准化相别标签列表，保序去重。"""
+        labels = []
+        for phase in phases or []:
+            label = str(phase).strip()
+            if label and label not in labels:
+                labels.append(label)
+        return labels
+
+    @staticmethod
+    def _normalize_bus_name(bus_name):
+        """统一母线名称格式，便于跨配置和运行时匹配。"""
+        return str(bus_name).strip().lower()
+
+    def _get_bus_phase_labels(self, bus_name):
+        """从电路缓存中读取母线相别，兼容大小写差异。"""
+        if not bus_name:
+            return []
+
+        candidates = [bus_name, str(bus_name).lower(), str(bus_name).upper()]
+        for candidate in candidates:
+            if candidate in self.circuit.bus_phase:
+                return self._normalize_phase_labels(self.circuit.bus_phase[candidate])
+        return []
+
+    def _build_phase_config(self, info):
+        """构建首批分相建模所需的静态配置，不改现有动作空间。"""
+        station_phases = self._get_bus_phase_labels(self.station_bus)
+        if len(station_phases) == 0:
+            station_phases = ['1', '2', '3']
+
+        raw_charger_types = info.get('charger_types', [])
+        if len(raw_charger_types) != self.con_num:
+            raw_charger_types = ['ac_slow' if power <= 22.0 else 'dc_fast' for power in self.ev_charger_kW]
+        charger_type_map = {
+            f'charger_{idx:02d}': str(raw_charger_types[idx]).strip().lower()
+            for idx in range(self.con_num)
+        }
+
+        ac_charger_phase_sequence = self._normalize_phase_labels(
+            info.get('ac_charger_phase_sequence', station_phases)
+        )
+        if len(ac_charger_phase_sequence) == 0:
+            ac_charger_phase_sequence = station_phases
+
+        ac_charger_names = [name for name, charger_type in charger_type_map.items() if charger_type == 'ac_slow']
+        ac_charger_phase_map = {
+            name: ac_charger_phase_sequence[idx % len(ac_charger_phase_sequence)]
+            for idx, name in enumerate(ac_charger_names)
+        }
+        dc_fast_charger_names = [
+            name for name, charger_type in charger_type_map.items() if charger_type == 'dc_fast'
+        ]
+
+        storage_phase_map = {
+            name: self._normalize_phase_labels(bat.phases)
+            for name, bat in self.circuit.storage_batteries.items()
+        }
+        pv_phase_map = {
+            name: self._normalize_phase_labels(load.phases)
+            for name, load in self.circuit.loads.items()
+            if 'PV' in name.upper()
+        }
+
+        self.phase_config = {
+            'station_bus': self.station_bus,
+            'station_bus_phases': station_phases,
+            'charger_type_map': charger_type_map,
+            'ac_charger_phase_sequence': ac_charger_phase_sequence,
+            'ac_charger_phase_map': ac_charger_phase_map,
+            'dc_fast_charger_names': dc_fast_charger_names,
+            'storage_phase_map': storage_phase_map,
+            'pv_phase_map': pv_phase_map,
+        }
+
+    def _resolve_phase_unbalance_scope(self):
+        """解析不平衡指标的母线范围模式。"""
+        scope_mode = self.phase_unbalance_scope
+
+        if scope_mode == 'global':
+            buses = [self._normalize_bus_name(bus_name) for bus_name in self.all_bus_names]
+        elif scope_mode == 'custom':
+            buses = [
+                self._normalize_bus_name(bus_name)
+                for bus_name in self.phase_unbalance_custom_buses
+                if str(bus_name).strip()
+            ]
+            if len(buses) == 0:
+                raise ValueError('phase_unbalance_scope=custom requires phase_unbalance_custom_buses')
+        else:
+            scope_mode = 'station_local'
+            buses = [self._normalize_bus_name(self.station_bus)]
+            buses.extend(
+                self._normalize_bus_name(bat.bus1)
+                for bat in self.circuit.storage_batteries.values()
+            )
+            buses.extend(
+                self._normalize_bus_name(load.bus1)
+                for name, load in self.circuit.loads.items()
+                if 'PV' in name.upper()
+            )
+
+        ordered_buses = []
+        seen = set()
+        for bus_name in buses:
+            if bus_name and bus_name not in seen:
+                ordered_buses.append(bus_name)
+                seen.add(bus_name)
+        return scope_mode, ordered_buses
+
+    def _count_phase_membership(self, phase_map):
+        """统计资源在各相上的配置数量。"""
+        phase_counts = {phase: 0 for phase in self.phase_config['station_bus_phases']}
+        for phases in phase_map.values():
+            for phase in phases:
+                if phase not in phase_counts:
+                    phase_counts[phase] = 0
+                phase_counts[phase] += 1
+        return phase_counts
+
+    def _build_phase_runtime_summary(self):
+        """输出运行期基础分相摘要，为后续不平衡指标建模做准备。"""
+        station_phases = self.phase_config['station_bus_phases']
+        ac_charger_phase_map = self.phase_config['ac_charger_phase_map']
+        charger_type_map = self.phase_config['charger_type_map']
+        active_ac_counts = {phase: 0 for phase in station_phases}
+        active_ac_power = {phase: 0.0 for phase in station_phases}
+        dc_fast_charging_power_total = 0.0
+
+        if hasattr(self, 'ev_station') and self.ev_station is not None:
+            for idx, status in enumerate(self.ev_station.get_all_statuses()):
+                charger_name = f'charger_{idx:02d}'
+                power_ratio = float(status[1])
+                charger_power = power_ratio * float(self.ev_charger_kW[idx])
+                charger_type = charger_type_map.get(charger_name, 'dc_fast')
+
+                if charger_type == 'ac_slow':
+                    phase = ac_charger_phase_map.get(charger_name)
+                    if phase is None:
+                        continue
+                    if phase not in active_ac_counts:
+                        active_ac_counts[phase] = 0
+                        active_ac_power[phase] = 0.0
+                    if power_ratio > 0.0:
+                        active_ac_counts[phase] += 1
+                        active_ac_power[phase] += charger_power
+                elif power_ratio > 0.0:
+                    dc_fast_charging_power_total += charger_power
+
+        return {
+            'station_bus_phases': station_phases,
+            'storage_phase_counts': self._count_phase_membership(self.phase_config['storage_phase_map']),
+            'pv_phase_counts': self._count_phase_membership(self.phase_config['pv_phase_map']),
+            'ac_charger_phase_counts': self._count_phase_membership(
+                {name: [phase] for name, phase in ac_charger_phase_map.items()}
+            ),
+            'active_ac_charger_phase_counts': active_ac_counts,
+            'active_ac_charging_power_by_phase': active_ac_power,
+            'dc_fast_charger_count': len(self.phase_config['dc_fast_charger_names']),
+            'dc_fast_charging_power_total': dc_fast_charging_power_total,
+        }
+
+    def _build_voltage_unbalance_summary(self):
+        """构建基于各母线相电压散布的最小不平衡指标。"""
+        scope_mode, scope_buses = self._resolve_phase_unbalance_scope()
+        scope_bus_set = set(scope_buses)
+        per_phase_samples = {phase: [] for phase in self.phase_config['station_bus_phases']}
+        multi_phase_spreads = []
+        three_phase_spreads = []
+        worst_three_phase_bus = None
+        worst_three_phase_spread = 0.0
+
+        for bus_name, voltages in self.obs.get('bus_voltages', {}).items():
+            if self._normalize_bus_name(bus_name) not in scope_bus_set:
+                continue
+
+            bus_phases = self._get_bus_phase_labels(bus_name)
+            if len(bus_phases) == 0:
+                bus_phases = [str(idx + 1) for idx in range(len(voltages))]
+
+            for phase, voltage in zip(bus_phases, voltages):
+                if phase not in per_phase_samples:
+                    per_phase_samples[phase] = []
+                per_phase_samples[phase].append(float(voltage))
+
+            if len(voltages) >= 2:
+                spread = float(max(voltages) - min(voltages))
+                multi_phase_spreads.append(spread)
+
+                if len(voltages) >= 3:
+                    three_phase_spreads.append(spread)
+                    if spread > worst_three_phase_spread:
+                        worst_three_phase_spread = spread
+                        worst_three_phase_bus = bus_name
+
+        phase_mean_voltage = {
+            phase: (float(np.mean(samples)) if len(samples) > 0 else None)
+            for phase, samples in per_phase_samples.items()
+        }
+        valid_phase_means = [value for value in phase_mean_voltage.values() if value is not None]
+        phase_mean_voltage_spread = (
+            float(max(valid_phase_means) - min(valid_phase_means)) if len(valid_phase_means) >= 2 else 0.0
+        )
+
+        return {
+            'scope_mode': scope_mode,
+            'scope_bus_count': len(scope_buses),
+            'scope_buses': scope_buses,
+            'threshold': self.phase_unbalance_threshold,
+            'multi_phase_bus_count': len(multi_phase_spreads),
+            'three_phase_bus_count': len(three_phase_spreads),
+            'mean_multi_phase_voltage_spread': float(np.mean(multi_phase_spreads)) if multi_phase_spreads else 0.0,
+            'max_multi_phase_voltage_spread': float(max(multi_phase_spreads)) if multi_phase_spreads else 0.0,
+            'mean_three_phase_voltage_spread': float(np.mean(three_phase_spreads)) if three_phase_spreads else 0.0,
+            'max_three_phase_voltage_spread': float(max(three_phase_spreads)) if three_phase_spreads else 0.0,
+            'three_phase_unbalance_bus_count': sum(
+                1 for spread in three_phase_spreads if spread >= self.phase_unbalance_threshold
+            ),
+            'worst_three_phase_bus': worst_three_phase_bus,
+            'worst_three_phase_spread': worst_three_phase_spread,
+            'phase_mean_voltage': phase_mean_voltage,
+            'phase_mean_voltage_spread': phase_mean_voltage_spread,
+        }
 
     def reset_obs_space(self, load_profile_idx=0, wrap_observation=True, observe_load=True):
         """reset the observation space 基于 option of wrapping and load. 此处设置观察空间的维度数和上下限。
@@ -733,6 +963,8 @@ class Env(gym.Env):
 
         # 计算奖励函数并返回额外信息
         reward, info = self.reward_func.composite_reward(capdiff, regdiff, soc_errs[:self.sto_num], dis_errs)
+        info['phase_summary'] = self._build_phase_runtime_summary()
+        info['voltage_unbalance'] = self._build_voltage_unbalance_summary()
 
         # noinspection PyTypeChecker
         info.update({'av_cap_err': sum(capdiff) / (self.cap_num + 1e-10),
@@ -836,7 +1068,10 @@ class Env(gym.Env):
 
         # Prepare info dictionary
         info = {
-            'load_profile_idx': load_profile_idx
+            'load_profile_idx': load_profile_idx,
+            'phase_config': self.phase_config.copy(),
+            'phase_summary': self._build_phase_runtime_summary(),
+            'voltage_unbalance': self._build_voltage_unbalance_summary(),
         }
 
         # 重置充电站的状态信息
@@ -920,6 +1155,8 @@ class Env(gym.Env):
         truncated = False  # Not truncated due to time limit, etc.
 
         reward, info = self.reward_func.composite_reward(capdiff, regdiff, soc_errs, dis_errs)
+        info['phase_summary'] = self._build_phase_runtime_summary()
+        info['voltage_unbalance'] = self._build_voltage_unbalance_summary()
         # avoid dividing by zero
         # noinspection PyTypeChecker
         info.update({'av_cap_err': sum(capdiff) / (self.cap_num + 1e-10),
@@ -1258,6 +1495,8 @@ class Env(gym.Env):
         truncated = False  # Not truncated due to time limit, etc.
 
         reward, info = self.reward_func.composite_reward(capdiff, regdiff, soc_errs, dis_errs)
+        info['phase_summary'] = self._build_phase_runtime_summary()
+        info['voltage_unbalance'] = self._build_voltage_unbalance_summary()
 
         # noinspection PyTypeChecker
         info.update({'av_cap_err': sum(capdiff) / (self.cap_num + 1e-10),

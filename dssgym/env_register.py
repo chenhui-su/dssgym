@@ -297,6 +297,8 @@ _STATION_INFO = {
         'bus_name': '680',  # 充电站连接的母线名称
         'num_chargers': 10,  # 充电桩数量
         'charger_kW': [120]*10, # 各充电桩容量
+        'charger_types': ['dc_fast'] * 10,  # 充电资源类型，支持 ac_slow / dc_fast
+        'ac_charger_phase_sequence': ['1', '2', '3'],  # 仅交流慢充默认相别轮转
         'transformer_kVA': 800, # 设定专变的容量
         # 'ev_price': '13Bus_ev_price.csv',  # 电价文件
         'station': [  # 充电站列表
@@ -305,6 +307,8 @@ _STATION_INFO = {
                 'bus_name': '680',  # 充电站连接的母线名称
                 'num_chargers': 10,  # 充电桩数量
                 'charger_kW': [120] * 10,  # 各充电桩容量
+                'charger_types': ['dc_fast'] * 10,  # 充电资源类型，支持 ac_slow / dc_fast
+                'ac_charger_phase_sequence': ['1', '2', '3'],  # 仅交流慢充默认相别轮转
                 'transformer_kVA': 800,  # 设定专变的容量
                 # 'ev_price': '13Bus_ev_price.csv',  # 电价文件
             },
@@ -314,6 +318,8 @@ _STATION_INFO = {
         'bus_name': '',  # 充电站连接的母线名称
         'num_chargers': 10,  # 充电桩数量
         'charger_kW': [120]*10, # 各充电桩容量
+        'charger_types': ['dc_fast'] * 10,  # 充电资源类型，支持 ac_slow / dc_fast
+        'ac_charger_phase_sequence': ['1', '2', '3'],  # 仅交流慢充默认相别轮转
         'transformer_kVA': 800, # 设定专变的容量
         # 'ev_price': '13Bus_ev_price.csv',  # 电价文件
     },
@@ -321,6 +327,8 @@ _STATION_INFO = {
         'bus_name': '',  # 充电站连接的母线名称
         'num_chargers': 10,  # 充电桩数量
         'charger_kW': [120]*10, # 各充电桩容量
+        'charger_types': ['dc_fast'] * 10,  # 充电资源类型，支持 ac_slow / dc_fast
+        'ac_charger_phase_sequence': ['1', '2', '3'],  # 仅交流慢充默认相别轮转
         'transformer_kVA': 800,  # 设定专变的容量
         # 'ev_price': '13Bus_ev_price.csv',  # 电价文件
     },
@@ -328,6 +336,8 @@ _STATION_INFO = {
         'bus_name': '',  # 充电站连接的母线名称
         'num_chargers': 10,  # 充电桩数量
         'charger_kW': [120]*10, # 各充电桩容量
+        'charger_types': ['dc_fast'] * 10,  # 充电资源类型，支持 ac_slow / dc_fast
+        'ac_charger_phase_sequence': ['1', '2', '3'],  # 仅交流慢充默认相别轮转
         'transformer_kVA': 800,  # 设定专变的容量
         # 'ev_price': '13Bus_ev_price.csv',  # 电价文件
     }
@@ -435,6 +445,9 @@ for env in _ENV_INFO.keys():
     # 显式设置电压越限惩罚权重
     _ENV_INFO[env]['voltage_w'] = 10.0
     _ENV_INFO[env]['tf_capacity_w'] = 10.0 / 200 # 按达到安全限值前计算 Note: 每次调整都需要更改统计中的超容量统计方式
+    _ENV_INFO[env]['phase_unbalance_threshold'] = 0.01  # 分相电压散布阈值，当前仅用于统计输出
+    _ENV_INFO[env]['phase_unbalance_scope'] = 'station_local'  # 可选 station_local / global / custom
+    _ENV_INFO[env]['phase_unbalance_custom_buses'] = []  # custom 模式下指定母线列表
 
 
 # %% 函数
