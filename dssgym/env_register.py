@@ -445,6 +445,7 @@ for env in _ENV_INFO.keys():
     # 显式设置电压越限惩罚权重
     _ENV_INFO[env]['voltage_w'] = 10.0
     _ENV_INFO[env]['tf_capacity_w'] = 10.0 / 200 # 按达到安全限值前计算 Note: 每次调整都需要更改统计中的超容量统计方式
+    _ENV_INFO[env]['phase_unbalance_w'] = 10.0  # 三相不平衡奖励权重，作用于 mean_three_phase_voltage_spread
     _ENV_INFO[env]['phase_unbalance_threshold'] = 0.01  # 分相电压散布阈值，当前仅用于统计输出
     _ENV_INFO[env]['phase_unbalance_scope'] = 'station_local'  # 可选 station_local / global / custom
     _ENV_INFO[env]['phase_unbalance_custom_buses'] = []  # custom 模式下指定母线列表

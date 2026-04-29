@@ -756,9 +756,11 @@ class Env(gym.Env):
             self.energy_w = info['energy_w']
             self.voltage_w = info['voltage_w']
             self.tf_capacity_w = info['tf_capacity_w']
+            self.phase_unbalance_w = info['phase_unbalance_w']
             # 添加组成部分列表，便于后续记录
             self.components = ['PowerLoss_reward', 'Voltage_reward', 'Control_reward',
-                             'Connection_reward', 'Completion_reward', 'Energy_reward', 'Transformer_reward']
+                             'Connection_reward', 'Completion_reward', 'Energy_reward', 'Transformer_reward',
+                             'Unbalance_reward']
 
         def powerloss_reward(self):
             # Penalty for power loss of entire system at one time step
@@ -829,6 +831,12 @@ class Env(gym.Env):
             else:
                 return 0
 
+        def phase_unbalance_reward(self):
+            # Penalty for voltage unbalance in the selected scope; use the smooth mean spread first.
+            unbalance = self.env._build_voltage_unbalance_summary()
+            spread = unbalance['mean_three_phase_voltage_spread']
+            return -spread * self.phase_unbalance_w, unbalance
+
         def composite_reward(self, cd, rd, soc, dis, full=True, record_node=False):
             # the main reward function
             powerloss = self.powerloss_reward()
@@ -838,16 +846,23 @@ class Env(gym.Env):
             completion = self.completion_reward()  # 添加充电完成率奖励
             energy = self.energy_reward()
             transformer = self.tf_reward()
+            unbalance, unbalance_summary = self.phase_unbalance_reward()
 
-            total_reward = powerloss + voltage + ctrl + connection + completion + energy + transformer
+            total_reward = powerloss + voltage + ctrl + connection + completion + energy + transformer + unbalance
 
             info = dict() if not record_node else {'violated_nodes': vio_nodes}
             if full:
                 info.update({'power_loss_ratio': -powerloss / self.power_w,
                              'PowerLoss_reward': powerloss, 'Voltage_reward': voltage, 'Control_reward': ctrl,
-                             'Connection_reward': connection, 'Completion_reward': completion, 'Energy_reward': energy, 'Transformer_reward': transformer})
+                             'Connection_reward': connection, 'Completion_reward': completion, 'Energy_reward': energy,
+                             'Transformer_reward': transformer, 'Unbalance_reward': unbalance,
+                             'mean_three_phase_voltage_spread': unbalance_summary['mean_three_phase_voltage_spread'],
+                             'unbalance_scope_mode': unbalance_summary['scope_mode']})
 
-            logging.info(f"奖励各项：{powerloss=}, {voltage=}, {ctrl=}, {connection=}, {completion=}, {energy=}, {transformer=}.")
+            logging.info(
+                f"奖励各项：{powerloss=}, {voltage=}, {ctrl=}, {connection=}, {completion=}, "
+                f"{energy=}, {transformer=}, {unbalance=}."
+            )
 
             return total_reward, info
 
